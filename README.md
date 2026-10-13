@@ -7,7 +7,7 @@ Ikona **robota** na lewym pasku aktywności otwiera okno czatu.
 ## Instalacja z VSIX
 
 1. `Extensions` → `…` → **Install from VSIX…**
-2. Wskaż plik `syntaxcoder-0.1.0.vsix`
+2. Wskaż plik `syntaxcoder-0.1.0.vsix` (jest w repozytorium)
 3. Kliknij robota po lewej — otworzy się czat SyntaxCoder
 
 ## LM Studio

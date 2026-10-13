@@ -12,6 +12,9 @@ Ikona **robota** na lewym pasku aktywności otwiera okno czatu.
 
 ## LM Studio
 
+Należy mieć zainstalowany i uruchomiony **LM Studio** (https://lmstudio.ai/). W ustawieniach LM Studio włącz **Allow remote connections** i sprawdź host oraz port.
+Pobierz model np. `qwen3.6-35b-a3b` i uruchom go w LM Studio. Jeśli wszystko jest poprawnie skonfigurowane, w panelu czatu SyntaxCoder pojawi się komunikat `Connected to LM Studio` i jeśli modeli jest więcj niż jeden, to będzie można wybrać model z listy rozwijanej.
+
 W panelu czatu kliknij **Połączenie** i wpisz host oraz port (np. `192.168.1.20` i `1234`).
 
 Ustawienia (`Ctrl+,` → SyntaxCoder): `syntaxcoder.host`, `syntaxcoder.port`.

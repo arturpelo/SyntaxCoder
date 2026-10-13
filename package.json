@@ -1,0 +1,156 @@
+{
+  "name": "syntaxcoder",
+  "displayName": "SyntaxCoder",
+  "description": "Asystent kodu w stylu Claude Code, działający na zdalnym modelu LM Studio. Czat, pliki, foldery i terminal.",
+  "version": "0.1.0",
+  "publisher": "artur-pelo",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Chat",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "syntaxcoder.openChat",
+        "title": "SyntaxCoder: Otwórz czat",
+        "icon": "$(hubot)"
+      },
+      {
+        "command": "syntaxcoder.newChat",
+        "title": "SyntaxCoder: Nowa rozmowa",
+        "icon": "$(add)"
+      },
+      {
+        "command": "syntaxcoder.stop",
+        "title": "SyntaxCoder: Zatrzymaj",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "syntaxcoder.pickModel",
+        "title": "SyntaxCoder: Wybierz model LM Studio"
+      },
+      {
+        "command": "syntaxcoder.addSelection",
+        "title": "SyntaxCoder: Dodaj zaznaczenie do czatu"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "syntaxcoder.addSelection",
+          "when": "editorHasSelection",
+          "group": "syntaxcoder"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "syntaxcoder.newChat",
+          "when": "view == syntaxcoder.chat",
+          "group": "navigation"
+        },
+        {
+          "command": "syntaxcoder.stop",
+          "when": "view == syntaxcoder.chat",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "syntaxcoder",
+          "title": "SyntaxCoder",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "syntaxcoder": [
+        {
+          "type": "webview",
+          "id": "syntaxcoder.chat",
+          "name": "Czat",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SyntaxCoder",
+      "properties": {
+        "syntaxcoder.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Adres hosta LM Studio (IP lub nazwa), np. 127.0.0.1 albo 192.168.1.20"
+        },
+        "syntaxcoder.port": {
+          "type": "number",
+          "default": 1234,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port serwera LM Studio (Local Server), domyślnie 1234"
+        },
+        "syntaxcoder.https": {
+          "type": "boolean",
+          "default": false,
+          "description": "Użyj https zamiast http"
+        },
+        "syntaxcoder.apiKey": {
+          "type": "string",
+          "default": "lm-studio",
+          "description": "Klucz API (LM Studio zwykle akceptuje dowolny, np. lm-studio)"
+        },
+        "syntaxcoder.model": {
+          "type": "string",
+          "default": "",
+          "description": "Identyfikator modelu z LM Studio. Pusty = pierwszy załadowany model."
+        },
+        "syntaxcoder.temperature": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 2
+        },
+        "syntaxcoder.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "minimum": 256
+        },
+        "syntaxcoder.autoApproveWrites": {
+          "type": "boolean",
+          "default": false,
+          "description": "Zapisuj i edytuj pliki bez potwierdzenia"
+        },
+        "syntaxcoder.autoApproveTerminal": {
+          "type": "boolean",
+          "default": false,
+          "description": "Uruchamiaj komendy terminala bez potwierdzenia"
+        },
+        "syntaxcoder.commandTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "description": "Limit czasu komendy (ms)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.0"
+  }
+}

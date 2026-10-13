@@ -1,0 +1,168 @@
+:root {
+  --bg: var(--vscode-sideBar-background, #1e1e1e);
+  --fg: var(--vscode-foreground, #ddd);
+  --muted: var(--vscode-descriptionForeground, #9aa);
+  --border: var(--vscode-panel-border, #333);
+  --accent: var(--vscode-button-background, #0e639c);
+  --accent-fg: var(--vscode-button-foreground, #fff);
+  --input: var(--vscode-input-background, #2a2a2a);
+  --user: color-mix(in srgb, var(--accent) 22%, transparent);
+  --tool: color-mix(in srgb, #c4a574 16%, transparent);
+  --err: color-mix(in srgb, #c45c5c 22%, transparent);
+  --font: var(--vscode-font-family, system-ui);
+  --mono: var(--vscode-editor-font-family, ui-monospace, Consolas, monospace);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 13px;
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+header strong { font-size: 13px; letter-spacing: 0.02em; }
+.pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.pill.on { color: #8fd19e; border-color: #3d7a4a; }
+.pill.off { color: #d98a8a; }
+button {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+button.ghost, #modelBtn, #cfgBtn {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+.hdr-actions { display: flex; gap: 6px; flex-shrink: 0; }
+#cfg {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  align-items: end;
+}
+#cfg[hidden] { display: none; }
+#cfg label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+#cfg label:first-of-type { grid-column: 1; }
+#cfg input {
+  background: var(--input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+#saveCfg { grid-column: 1 / -1; justify-self: start; }
+.hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+#log {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.msg {
+  padding: 8px 10px;
+  border-radius: 8px;
+  line-height: 1.45;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.msg.user {
+  background: var(--user);
+  align-self: flex-end;
+  white-space: pre-wrap;
+}
+.msg.assistant { background: transparent; padding-left: 2px; }
+.msg.error { background: var(--err); }
+.msg.tool {
+  background: var(--tool);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.msg.pending { border: 1px dashed var(--border); }
+.who { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+pre {
+  margin: 8px 0 0;
+  padding: 8px;
+  overflow: auto;
+  background: var(--input);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--input);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+pre code { background: none; padding: 0; }
+.msg.assistant p { margin: 0 0 8px; }
+.actions { display: flex; gap: 6px; margin-top: 8px; }
+#composer {
+  border-top: 1px solid var(--border);
+  padding: 8px;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+  max-height: 180px;
+  background: var(--input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: var(--font);
+  font-size: 13px;
+}
+.row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+#stop { background: #8a3b3b; }
+.empty {
+  color: var(--muted);
+  text-align: center;
+  margin: 24px 12px;
+  line-height: 1.5;
+}

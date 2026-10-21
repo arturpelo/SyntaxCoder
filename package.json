@@ -1,0 +1,239 @@
+{
+  "name": "syntaxcoder",
+  "displayName": "SyntaxCoder",
+  "description": "%description%",
+  "version": "0.7.0",
+  "private": true,
+  "publisher": "arturpelo",
+  "author": {
+    "name": "Artur Pelo"
+  },
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arturpelo/SyntaxCoder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arturpelo/SyntaxCoder/issues"
+  },
+  "homepage": "https://github.com/arturpelo/SyntaxCoder#readme",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Machine Learning"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "%trust.description%"
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "syntaxcoder.openChat",
+        "title": "%cmd.openChat%",
+        "icon": "$(hubot)",
+        "category": "SyntaxCoder"
+      },
+      {
+        "command": "syntaxcoder.newChat",
+        "title": "%cmd.newChat%",
+        "icon": "$(add)",
+        "category": "SyntaxCoder"
+      },
+      {
+        "command": "syntaxcoder.stop",
+        "title": "%cmd.stop%",
+        "icon": "$(debug-stop)",
+        "category": "SyntaxCoder"
+      },
+      {
+        "command": "syntaxcoder.pickModel",
+        "title": "%cmd.pickModel%",
+        "category": "SyntaxCoder"
+      },
+      {
+        "command": "syntaxcoder.connection",
+        "title": "%cmd.connection%",
+        "icon": "$(settings-gear)",
+        "category": "SyntaxCoder"
+      },
+      {
+        "command": "syntaxcoder.addSelection",
+        "title": "%cmd.addSelection%",
+        "category": "SyntaxCoder"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "syntaxcoder.addSelection",
+          "when": "editorHasSelection",
+          "group": "syntaxcoder"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "syntaxcoder.newChat",
+          "when": "view == syntaxcoder.chat",
+          "group": "navigation@1"
+        },
+        {
+          "command": "syntaxcoder.connection",
+          "when": "view == syntaxcoder.chat",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "syntaxcoder",
+          "title": "SyntaxCoder",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "syntaxcoder": [
+        {
+          "type": "webview",
+          "id": "syntaxcoder.chat",
+          "name": "%view.chat%",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SyntaxCoder",
+      "properties": {
+        "syntaxcoder.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "%cfg.host%"
+        },
+        "syntaxcoder.port": {
+          "type": "number",
+          "default": 1234,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "%cfg.port%"
+        },
+        "syntaxcoder.https": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.https%"
+        },
+        "syntaxcoder.apiKey": {
+          "type": "string",
+          "default": "lm-studio",
+          "description": "%cfg.apiKey%"
+        },
+        "syntaxcoder.model": {
+          "type": "string",
+          "default": "",
+          "description": "%cfg.model%"
+        },
+        "syntaxcoder.temperature": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "%cfg.temperature%"
+        },
+        "syntaxcoder.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "minimum": 256,
+          "description": "%cfg.maxTokens%"
+        },
+        "syntaxcoder.autoApproveWrites": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.autoApproveWrites%",
+          "scope": "application"
+        },
+        "syntaxcoder.autoApproveTerminal": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.autoApproveTerminal%",
+          "scope": "application"
+        },
+        "syntaxcoder.commandTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "description": "%cfg.commandTimeoutMs%"
+        },
+        "syntaxcoder.autonomousMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.autonomousMode%",
+          "scope": "application"
+        },
+        "syntaxcoder.reviewer": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.reviewer%"
+        },
+        "syntaxcoder.language": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "en",
+            "de",
+            "fr",
+            "pl"
+          ],
+          "enumDescriptions": [
+            "%cfg.language.auto%",
+            "English",
+            "Deutsch",
+            "Français",
+            "Polski"
+          ],
+          "description": "%cfg.language%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.0",
+    "@vscode/vsce": "^4.0.0"
+  },
+  "keywords": [
+    "lm studio",
+    "local llm",
+    "ai",
+    "agent",
+    "assistant",
+    "chat",
+    "offline",
+    "qwen",
+    "llama"
+  ]
+}

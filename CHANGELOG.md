@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+- Agent nie kręci się w kółko: gdy powtarza to samo wywołanie narzędzia z tym samym wynikiem, dostaje wskazówkę, żeby zmienić podejście. Po 2 takich wskazówkach zostaje zatrzymany z jasnym komunikatem.
+- Recenzent: do 4 rund poprawek (było 2). Gdy agent w rundzie poprawek nic nie zmieni, dostaje jeszcze jedną szansę, zanim recenzent sprawdzi pliki ponownie.
+- Limit rund narzędzi w jednym zadaniu: 24 (było 16).
+- Bezpieczeństwo: `host`, `port`, `https`, `apiKey`, `model` i `commandTimeoutMs` działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium nie przekieruje już połączenia (razem z tokenem API) na inny serwer.
+- Bezpieczeństwo: dowiązania symboliczne i junction w projekcie nie pozwalają wyjść poza workspace.
+- Bezpieczeństwo: zapis do `.git`, `.vscode`, `.devcontainer` i `.husky` zawsze wymaga zgody, także przy `autoApproveWrites` (hooki gita i zadania VS Code mogą uruchamiać kod).
+- Bezpieczeństwo: `read_file` też nie czyta plików z sekretami (wcześniej tylko `grep`).
+- `run_command` na Windows po przekroczeniu limitu czasu zamyka całe drzewo procesów, a nie tylko `cmd.exe`.
+- `edit_file` wstawia `$&`, `$1` itp. w nowym tekście dosłownie.
+
 ## 0.7.0
 
 - Kropka połączenia zmienia się na zieloną dopiero po prawdziwej odpowiedzi API serwera (lista modeli w formacie LM Studio) i gdy serwer ma wybrany model. Wcześniej ustawiony model wystarczał, żeby kropka świeciła na zielono bez pytania serwera. W trakcie sprawdzania kropka pulsuje na żółto.

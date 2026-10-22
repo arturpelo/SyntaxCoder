@@ -10,7 +10,8 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 - Narzędzia agenta: `read_file`, `write_file`, `edit_file`, `create_dir`, `move_path`, `delete_path`, `list_dir`, `glob`, `grep`, `get_diagnostics`, `run_command`, `open_file`.
 - Zgoda na każdy zapis pliku i każdą komendę (przyciski **Zezwól / Odrzuć**). Można to wyłączyć w ustawieniach.
 - Przełącznik **Auto** przy polu wiadomości włącza tryb autonomiczny (po potwierdzeniu).
-- Przełącznik **Recenzent**: gdy agent zmieni pliki, drugi przebieg modelu (tylko z narzędziami do odczytu) sprawdza w plikach, czy polecenie zostało wykonane. Braki wracają do agenta, maksymalnie 2 rundy poprawek.
+- Przełącznik **Recenzent**: gdy agent zmieni pliki, drugi przebieg modelu (tylko z narzędziami do odczytu) sprawdza w plikach, czy polecenie zostało wykonane. Braki wracają do agenta, maksymalnie 4 rundy poprawek.
+- Agent, który powtarza te same kroki bez postępu, dostaje wskazówkę, żeby zmienić podejście, a gdy to nie pomoże, zostaje zatrzymany.
 - Wybór modelu z listy modeli załadowanych w LM Studio.
 - **Dodaj zaznaczenie do czatu** w menu kontekstowym edytora.
 - Interfejs po angielsku, niemiecku, francusku i polsku.
@@ -49,12 +50,14 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 ## Bezpieczeństwo
 
 - Token API z panelu ustawień trafia do bezpiecznego magazynu VS Code (pęk kluczy systemu), a nie do `settings.json`. Rozszerzenie wysyła go tylko do serwera LM Studio jako `Authorization: Bearer` i nigdy nie pokazuje go w czacie.
-- Agent działa tylko w otwartym folderze (workspace). Ścieżek spoza niego nie dotyka.
+- Agent działa tylko w otwartym folderze (workspace). Ścieżek spoza niego nie dotyka, także przez dowiązania symboliczne i junction.
 - Rozszerzenie działa tylko w **zaufanych** folderach (Workspace Trust), bo może uruchamiać komendy.
 - `autonomousMode`, `autoApproveWrites` i `autoApproveTerminal` wyłączają pytania o zgodę. Model może wtedy sam zmieniać pliki i uruchamiać dowolne komendy. Włączaj je tylko w projektach, którym ufasz.
-- Te trzy ustawienia działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium ich nie włączy.
-- `grep` nie czyta plików z sekretami (`.env`, `.env.local`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`). Pliki `.env.example` czyta normalnie.
+- Te trzy ustawienia oraz ustawienia połączenia (`host`, `port`, `https`, `apiKey`, `model`) i `commandTimeoutMs` działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium ich nie zmieni, więc nie przekieruje tokena na obcy serwer.
+- Zapis do `.git`, `.vscode`, `.devcontainer` i `.husky` zawsze wymaga zgody (poza trybem autonomicznym), bo hooki gita i zadania VS Code mogą uruchamiać kod.
+- `read_file` i `grep` nie czytają plików z sekretami (`.env`, `.env.local`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`). Pliki `.env.example` czyta normalnie.
 - `delete_path` przenosi pliki do kosza systemowego, jeśli się da.
+- Połączenie przez HTTP (np. LM Studio w sieci lokalnej) wysyła token i kod otwartym tekstem. Ktoś w tej samej sieci może je podejrzeć albo podmienić odpowiedzi modelu. Przy HTTP poza własnym komputerem nie włączaj trybu autonomicznego ani `autoApproveTerminal`.
 - Wyjście komend agenta widać w panelu **Output → SyntaxCoder**.
 
 ## Języki

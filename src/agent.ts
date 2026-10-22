@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { getConfig, workspaceRoot } from "./config";
 import { streamChat, type ChatMessage, type ToolCall } from "./lmStudio";
 import { t } from "./i18n";
-import { executeTool, needsApproval, TOOL_DEFS } from "./tools";
+import { executeTool, isProtectedWrite, needsApproval, TOOL_DEFS } from "./tools";
 
 export interface AgentHost {
   post(msg: Record<string, unknown>): void;
@@ -10,8 +10,17 @@ export interface AgentHost {
 }
 
 export const ABORTED = "aborted";
-const MAX_TURNS = 16;
-const MAX_FIX_ROUNDS = 2;
+const MAX_TURNS = 24;
+const MAX_FIX_ROUNDS = 4;
+// Ile razy szturchamy model, który powtarza te same wywołania z tym samym wynikiem, zanim przerwiemy.
+const MAX_NUDGES = 2;
+const REPEAT_NUDGE =
+  "You repeated a tool call you already made and got the same result. Repeating it will not help. " +
+  "Read the error again, check the current file contents, and try a different approach. " +
+  "If the task is really blocked, stop calling tools and explain exactly what blocks it.";
+const NO_CHANGE_NUDGE =
+  "You changed nothing, so the reviewer's gaps are still there. Use the tools to fix them now, " +
+  "or explain exactly why a gap cannot be fixed.";
 // Recenzent tylko czyta: bez zapisu, komend i otwierania edytora.
 const REVIEW_TOOLS = TOOL_DEFS.filter(
   (t) => needsApproval(t.function.name) === null && t.function.name !== "open_file"
@@ -67,6 +76,9 @@ async function loop(
   opts: { signal: AbortSignal; host: AgentHost }
 ): Promise<{ finished: boolean; changes: string[] }> {
   const changes: string[] = [];
+  // Wywołanie + wynik: ten sam klucz drugi raz = model kręci się w miejscu.
+  const seen = new Set<string>();
+  let nudges = 0;
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     if (opts.signal.aborted) {
       throw new Error(ABORTED);
@@ -97,6 +109,7 @@ async function loop(
       opts.host.post({ type: "assistantDone" });
     }
 
+    let repeated = true;
     for (const call of calls) {
       if (opts.signal.aborted) {
         throw new Error(ABORTED);
@@ -110,7 +123,7 @@ async function loop(
         allowed = false;
       } else if (!cfg.autonomousMode) {
         // W trybie autonomicznym wszystkie operacje są automatycznie zatwierdzane
-        if (kind === "write" && !cfg.autoApproveWrites) {
+        if (kind === "write" && (!cfg.autoApproveWrites || isProtectedWrite(args))) {
           allowed = await opts.host.waitApproval(call.id, kind, name, args);
         } else if (kind === "terminal" && !cfg.autoApproveTerminal) {
           allowed = await opts.host.waitApproval(call.id, kind, name, args);
@@ -126,6 +139,20 @@ async function loop(
       }
       opts.host.post({ type: "toolResult", id: call.id, name, ok: result.ok, preview: result.text.slice(0, 1200) });
       messages.push({ role: "tool", tool_call_id: call.id, content: result.text });
+      const key = `${name}\u0000${args}\u0000${result.text}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        repeated = false;
+      }
+    }
+
+    if (repeated) {
+      if (nudges >= MAX_NUDGES) {
+        opts.host.post({ type: "error", message: t("agentStuck") });
+        return { finished: false, changes };
+      }
+      nudges++;
+      messages.push({ role: "user", content: REPEAT_NUDGE });
     }
   }
 
@@ -231,6 +258,12 @@ export async function runAgent(opts: {
       });
       res = await loop(messages, "agent", opts);
       changes.push(...res.changes);
+      // Agent skończył bez żadnej zmiany: jeden szturchaniec, zanim recenzent znów powie FAIL.
+      if (res.finished && !res.changes.length) {
+        messages.push({ role: "user", content: NO_CHANGE_NUDGE });
+        res = await loop(messages, "agent", opts);
+        changes.push(...res.changes);
+      }
       if (!res.finished) {
         break;
       }

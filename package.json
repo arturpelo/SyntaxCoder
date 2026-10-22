@@ -2,7 +2,7 @@
   "name": "syntaxcoder",
   "displayName": "SyntaxCoder",
   "description": "%description%",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "publisher": "arturpelo",
   "author": {
@@ -125,29 +125,34 @@
         "syntaxcoder.host": {
           "type": "string",
           "default": "127.0.0.1",
-          "description": "%cfg.host%"
+          "description": "%cfg.host%",
+          "scope": "application"
         },
         "syntaxcoder.port": {
           "type": "number",
           "default": 1234,
           "minimum": 1,
           "maximum": 65535,
-          "description": "%cfg.port%"
+          "description": "%cfg.port%",
+          "scope": "application"
         },
         "syntaxcoder.https": {
           "type": "boolean",
           "default": false,
-          "description": "%cfg.https%"
+          "description": "%cfg.https%",
+          "scope": "application"
         },
         "syntaxcoder.apiKey": {
           "type": "string",
           "default": "lm-studio",
-          "description": "%cfg.apiKey%"
+          "description": "%cfg.apiKey%",
+          "scope": "application"
         },
         "syntaxcoder.model": {
           "type": "string",
           "default": "",
-          "description": "%cfg.model%"
+          "description": "%cfg.model%",
+          "scope": "application"
         },
         "syntaxcoder.temperature": {
           "type": "number",
@@ -177,7 +182,8 @@
         "syntaxcoder.commandTimeoutMs": {
           "type": "number",
           "default": 60000,
-          "description": "%cfg.commandTimeoutMs%"
+          "description": "%cfg.commandTimeoutMs%",
+          "scope": "application"
         },
         "syntaxcoder.autonomousMode": {
           "type": "boolean",

@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import { realpathSync } from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
 import * as vscode from "vscode";
@@ -34,7 +35,7 @@ const SKIP = new Set([
   ".svn",
   ".hg",
 ]);
-// Pliki z sekretami: grep ich nie czyta, żeby klucze nie trafiały do modelu.
+// Pliki z sekretami: grep ani read_file ich nie czytają, żeby klucze nie trafiały do modelu.
 const SECRET = /^(\.env(\..+)?|\.npmrc|\.pypirc|\.netrc|.+\.(pem|key|p12|pfx))$/i;
 const SECRET_OK = /\.(example|sample|template|dist)$/i;
 const MAX_READ = 400_000;
@@ -301,19 +302,71 @@ function requireRoot(): string {
   return root;
 }
 
+function isInside(root: string, abs: string): boolean {
+  const r = path.relative(root, abs);
+  return r !== ".." && !r.startsWith(".." + path.sep) && !path.isAbsolute(r);
+}
+
+// Prawdziwa ścieżka najbliższego istniejącego przodka + reszta (plik może jeszcze nie istnieć).
+function realExisting(p: string): string {
+  for (let cur = p; ; ) {
+    try {
+      return path.join(realpathSync.native(cur), path.relative(cur, p));
+    } catch {
+      const up = path.dirname(cur);
+      if (up === cur) {
+        return p;
+      }
+      cur = up;
+    }
+  }
+}
+
 export function resolveInWorkspace(rel: string): string {
   const root = requireRoot();
   const cleaned = rel.replace(/\\/g, "/");
   const abs = path.resolve(root, cleaned);
-  const relToRoot = path.relative(root, abs);
-  if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
+  // Drugi test po rozwinięciu dowiązań: symlink/junction w repo nie wyprowadzi poza workspace.
+  if (!isInside(root, abs) || !isInside(realExisting(root), realExisting(abs))) {
     throw new Error(`Path outside the workspace: ${rel}`);
   }
   return abs;
 }
 
+// Zapis tu daje wykonanie kodu bez pytania o terminal (hooki gita, zadania i ustawienia VS Code),
+// więc takie zmiany zawsze wymagają zgody, nawet przy autoApproveWrites.
+const PROTECTED_DIRS = new Set([".git", ".vscode", ".devcontainer", ".husky"]);
+
+export function isProtectedWrite(rawArgs: string): boolean {
+  const root = workspaceRoot();
+  if (!root) {
+    return false;
+  }
+  let args: Record<string, unknown>;
+  try {
+    args = JSON.parse(rawArgs || "{}") as Record<string, unknown>;
+  } catch {
+    return true;
+  }
+  return [args.path, args.from, args.to].some((p) => {
+    if (typeof p !== "string") {
+      return false;
+    }
+    const first = path.relative(root, path.resolve(root, p.replace(/\\/g, "/"))).split(path.sep)[0];
+    return PROTECTED_DIRS.has(first.toLowerCase());
+  });
+}
+
+function isSecretFile(abs: string): boolean {
+  const name = path.basename(abs);
+  return SECRET.test(name) && !SECRET_OK.test(name);
+}
+
 async function readFile(rel: string, offset?: number, limit?: number): Promise<string> {
   const abs = resolveInWorkspace(rel);
+  if (isSecretFile(abs)) {
+    throw new Error(`${rel} holds secrets and is not sent to the model. Ask the user for the values you need.`);
+  }
   const buf = await fs.readFile(abs);
   if (buf.length > MAX_READ * 4) {
     throw new Error(`File too large (${buf.length} B). Read it in parts (offset/limit).`);
@@ -369,7 +422,8 @@ async function editFile(rel: string, oldStr: string, newStr: string): Promise<st
   if (count > 1) {
     throw new Error(`old_string occurs ${count} times. Give a more unique fragment.`);
   }
-  const next = current.replace(oldStr, newStr);
+  // Funkcja zamiast tekstu: "$&", "$1" itp. w new_string trafiają do pliku dosłownie.
+  const next = current.replace(oldStr, () => newStr);
   await fs.writeFile(abs, next, "utf8");
   const doc = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === abs);
   if (doc) {
@@ -562,7 +616,7 @@ async function grep(pattern: string, rel: string, fileGlob: string): Promise<str
         await walk(full, p);
         continue;
       }
-      if ((fileRx && !fileRx.test(p) && !fileRx.test(e.name)) || (SECRET.test(e.name) && !SECRET_OK.test(e.name))) {
+      if ((fileRx && !fileRx.test(p) && !fileRx.test(e.name)) || isSecretFile(e.name)) {
         continue;
       }
       let text: string;
@@ -618,15 +672,25 @@ async function runCommand(command: string, cwdRel: string): Promise<string> {
     let out = "";
     let err = "";
     const timer = setTimeout(() => {
-      child.kill();
+      // shell: true na Windows: kill() zabija tylko cmd.exe, a właściwy proces działa dalej.
+      if (process.platform === "win32" && child.pid) {
+        spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
+      } else {
+        child.kill();
+      }
       reject(new Error(trimOut(`TIMEOUT after ${timeout}ms\n${out}${err}`)));
     }, timeout);
+    // Do modelu idzie najwyżej MAX_OUT znaków, więc nie trzymamy w pamięci więcej.
     child.stdout?.on("data", (d: Buffer) => {
-      out += d.toString();
+      if (out.length <= MAX_OUT) {
+        out += d.toString();
+      }
       log.append(d.toString());
     });
     child.stderr?.on("data", (d: Buffer) => {
-      err += d.toString();
+      if (err.length <= MAX_OUT) {
+        err += d.toString();
+      }
       log.append(d.toString());
     });
     child.on("close", (code) => {

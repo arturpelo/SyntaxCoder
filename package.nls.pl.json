@@ -19,7 +19,8 @@
   "cfg.autoApproveTerminal": "Uruchamiaj komendy terminala bez potwierdzenia",
   "cfg.commandTimeoutMs": "Limit czasu komendy (ms)",
   "cfg.autonomousMode": "Tryb autonomiczny: model zapisuje pliki i uruchamia komendy BEZ pytania. Włączaj tylko w projektach, którym ufasz.",
-  "cfg.reviewer": "Recenzent: po zmianach plików drugi przebieg modelu sprawdza, czy zadanie z polecenia zostało wykonane. Braki wracają do agenta (maks. 2 rundy poprawek).",
+  "cfg.reviewer": "Recenzent: po zmianach plików drugi przebieg modelu sprawdza, czy zadanie z polecenia zostało wykonane. Braki wracają do agenta (maks. 4 rundy poprawek).",
+  "cfg.planMode": "Tryb planu: agent najpierw czyta kod i zapisuje plan kroków (tylko narzędzia do odczytu). Zmiany zaczynają się dopiero po kliknięciu „Wykonaj plan” w czacie.",
   "cfg.language": "Język interfejsu",
   "cfg.language.auto": "Jak VS Code (angielski, gdy nieobsługiwany)"
 }

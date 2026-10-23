@@ -10,3 +10,4 @@ tsconfig.json
 *.vsix
 AGENT.md
 .DS_Store
+PORADNIK-WYDANIE.pdf

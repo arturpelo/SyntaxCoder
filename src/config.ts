@@ -14,6 +14,7 @@ export interface SyntaxCoderConfig {
   autoApproveTerminal: boolean;
   autonomousMode: boolean;
   reviewer: boolean;
+  planMode: boolean;
   commandTimeoutMs: number;
 }
 
@@ -65,6 +66,7 @@ export function getConfig(): SyntaxCoderConfig {
     autoApproveTerminal: c.get<boolean>("autoApproveTerminal", false),
     autonomousMode: c.get<boolean>("autonomousMode", false),
     reviewer: c.get<boolean>("reviewer", false),
+    planMode: c.get<boolean>("planMode", false),
     commandTimeoutMs: c.get<number>("commandTimeoutMs", 60000),
   };
 }

@@ -7,10 +7,12 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 ## Funkcje
 
 - Czat w panelu bocznym (ikona **SxC** na pasku aktywności) ze streamingiem odpowiedzi i podglądem „myślenia” modelu.
-- Narzędzia agenta: `read_file`, `write_file`, `edit_file`, `create_dir`, `move_path`, `delete_path`, `list_dir`, `glob`, `grep`, `get_diagnostics`, `run_command`, `open_file`.
+- Narzędzia agenta: `read_file`, `write_file`, `edit_file`, `create_dir`, `move_path`, `delete_path`, `list_dir`, `glob`, `grep`, `get_diagnostics`, `run_command`, `open_file`, `update_plan`.
+- Plan zadania: przy zadaniach z kilkoma krokami agent prowadzi plan (`update_plan`), widoczny w czacie jako lista kroków ze stanem (○ do zrobienia, ▸ w toku, ✓ zrobione).
 - Zgoda na każdy zapis pliku i każdą komendę (przyciski **Zezwól / Odrzuć**). Można to wyłączyć w ustawieniach.
 - Przełącznik **Auto** przy polu wiadomości włącza tryb autonomiczny (po potwierdzeniu).
 - Przełącznik **Recenzent**: gdy agent zmieni pliki, drugi przebieg modelu (tylko z narzędziami do odczytu) sprawdza w plikach, czy polecenie zostało wykonane. Braki wracają do agenta, maksymalnie 4 rundy poprawek.
+- Przełącznik **Plan** (tryb planu): agent najpierw czyta kod (tylko narzędzia do odczytu) i zapisuje plan kroków. Nic się nie zmienia, dopóki nie klikniesz **Wykonaj plan** pod planem. Zamiast tego możesz napisać, co w planie zmienić, a agent zapisze nowy plan. Przy wykonaniu agent odhacza kolejne kroki, a recenzent (gdy włączony) sprawdza każdy krok planu.
 - Agent, który powtarza te same kroki bez postępu, dostaje wskazówkę, żeby zmienić podejście, a gdy to nie pomoże, zostaje zatrzymany.
 - Wybór modelu z listy modeli załadowanych w LM Studio.
 - **Dodaj zaznaczenie do czatu** w menu kontekstowym edytora.
@@ -44,6 +46,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 | `syntaxcoder.autoApproveTerminal` | `false` | Komendy bez pytania |
 | `syntaxcoder.autonomousMode` | `false` | Wszystko bez pytania |
 | `syntaxcoder.reviewer` | `false` | Recenzent sprawdza wykonanie zadania |
+| `syntaxcoder.planMode` | `false` | Tryb planu: najpierw plan, zmiany dopiero po **Wykonaj plan** |
 | `syntaxcoder.language` | `auto` | Język interfejsu: `auto` (jak VS Code), `en`, `de`, `fr`, `pl` |
 | `syntaxcoder.commandTimeoutMs` | `60000` | Limit czasu jednej komendy (ms) |
 

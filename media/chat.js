@@ -24,6 +24,7 @@ let connected = false;
 let currentAssistant = null;
 let currentReason = null;
 let lastStatus = null;
+let planCard = null; // jedna karta planu na rozmowę; każda zmiana planu przenosi ją na dół
 let S = {}; // teksty UI w wybranym języku; przychodzą od hosta ("l10n")
 
 function tr(key, ...args) {
@@ -193,6 +194,17 @@ function ensureAssistant(who) {
 }
 
 const KIND = { write: "kindWrite", terminal: "kindTerminal" };
+const PLAN_MARK = { pending: "○", in_progress: "▸", done: "✓" };
+
+function renderPlan(steps) {
+  const done = steps.filter((s) => s.status === "done").length;
+  return el(`<div class="plan">
+    <div class="head"><span class="kind">${esc(tr("plan"))}</span><span class="count">${done}/${steps.length}</span></div>
+    <ol>${steps
+      .map((s) => `<li class="${esc(s.status)}"><span class="mark">${PLAN_MARK[s.status] ?? "○"}</span><span class="text">${inline(s.step)}</span></li>`)
+      .join("")}</ol>
+  </div>`);
+}
 
 function renderStatus(m) {
   connected = m.connected;
@@ -224,11 +236,13 @@ window.addEventListener("message", (ev) => {
     case "cleared":
       currentAssistant = null;
       currentReason = null;
+      planCard = null;
       emptyHint();
       break;
     case "user":
       currentAssistant = null;
       currentReason = null;
+      planCard?.querySelector(".actions")?.remove();
       append(el(`<div class="msg user">${esc(m.text)}</div>`));
       log.scrollTop = log.scrollHeight;
       break;
@@ -298,6 +312,24 @@ window.addEventListener("message", (ev) => {
         node.classList.add(m.ok ? "ok" : "fail");
         node.querySelector(".out").textContent = m.preview || "(ok)";
       }
+      break;
+    }
+    case "plan":
+      endReasoning();
+      currentAssistant = null;
+      planCard?.remove();
+      planCard = append(renderPlan(m.steps));
+      break;
+    case "planReady": {
+      if (!planCard) break;
+      const actions = el(`<div class="actions"><button>${esc(tr("planRun"))}</button><span class="hint">${esc(tr("planHint"))}</span></div>`);
+      actions.querySelector("button").onclick = () => {
+        actions.remove();
+        vscode.postMessage({ type: "executePlan" });
+      };
+      planCard.appendChild(actions);
+      // Pod podsumowanie modelu: decyzja na samym dole rozmowy.
+      append(planCard);
       break;
     }
     case "error":

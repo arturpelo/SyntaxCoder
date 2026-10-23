@@ -16,6 +16,7 @@
   --ok: var(--vscode-testing-iconPassed, #73c991);
   --warn: var(--vscode-editorWarning-foreground, #cca700);
   --err: var(--vscode-errorForeground, #f48771);
+  --plan: var(--vscode-charts-blue, #3794ff);
   --font: var(--vscode-font-family, system-ui);
   --mono: var(--vscode-editor-font-family, ui-monospace, Consolas, monospace);
   --radius: 6px;
@@ -220,7 +221,27 @@ details.thinking .body { white-space: pre-wrap; color: var(--muted); max-height:
 .pending .head { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .pending .kind { color: var(--warn); font-weight: 600; flex-shrink: 0; }
 .pending pre { max-height: 220px; overflow: auto; white-space: pre-wrap; }
-.actions { display: flex; gap: 6px; margin-top: 8px; }
+.actions { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+
+/* Plan */
+.plan {
+  padding: 8px 10px;
+  border: 1px solid var(--plan);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--plan) 6%, transparent);
+  font-size: 12px;
+}
+.plan .head { display: flex; align-items: center; gap: 6px; }
+.plan .kind { color: var(--plan); font-weight: 600; }
+.plan .count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.plan ol { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 0; padding: 0; list-style: none; }
+.plan li { display: flex; gap: 6px; line-height: 1.4; overflow-wrap: anywhere; }
+.plan .mark { flex-shrink: 0; width: 1em; text-align: center; color: var(--muted); }
+.plan li.in_progress { font-weight: 600; }
+.plan li.in_progress .mark { color: var(--warn); }
+.plan li.done { color: var(--muted); }
+.plan li.done .mark { color: var(--ok); }
+.plan li.done .text { text-decoration: line-through; }
 
 /* Pusty stan */
 .empty { margin: auto 4px; text-align: center; color: var(--muted); line-height: 1.5; }
@@ -308,6 +329,7 @@ textarea::placeholder { color: var(--vscode-input-placeholderForeground, var(--m
 }
 .switch[aria-checked="true"] { --on: var(--warn); color: var(--on); border-color: var(--on); }
 .switch[data-flag="reviewer"][aria-checked="true"] { --on: var(--vscode-charts-purple, #b180d7); }
+.switch[data-flag="planMode"][aria-checked="true"] { --on: var(--plan); }
 .switch[aria-checked="true"] .track { background: var(--on); }
 .switch[aria-checked="true"] .knob { transform: translateX(9px); background: var(--bg); }
 #modelName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

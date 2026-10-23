@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5
+
+- Plan zadania: nowe narzędzie `update_plan`. Agent zapisuje w nim kroki zadania, a czat pokazuje je jako jedną listę ze stanem kroków (do zrobienia, w toku, zrobione), aktualizowaną na bieżąco.
+- Tryb planu: przełącznik **Plan** przy polu wiadomości (`syntaxcoder.planMode`). Agent ma wtedy tylko narzędzia do odczytu, czyta kod i zapisuje plan. Zmiany zaczynają się dopiero po kliknięciu **Wykonaj plan**; nowa wiadomość zamiast tego poprawia plan. Agent, który opisze plan tylko tekstem, dostaje jedno przypomnienie o `update_plan`.
+- Recenzent po wykonaniu planu sprawdza każdy krok planu.
+
 ## 0.8.0
 
 - Agent nie kręci się w kółko: gdy powtarza to samo wywołanie narzędzia z tym samym wynikiem, dostaje wskazówkę, żeby zmienić podejście. Po 2 takich wskazówkach zostaje zatrzymany z jasnym komunikatem.

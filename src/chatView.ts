@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import * as vscode from "vscode";
-import { runAgent } from "./agent";
+import { approvedPlanPrompt, runAgent, type PlanStep } from "./agent";
 import { checkServer, listModels, ModelMissingError, type ChatMessage } from "./lmStudio";
 import { getConfig, hasApiToken, saveConnection, storeApiToken } from "./config";
 import { ABORTED } from "./agent";
@@ -12,6 +12,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private history: ChatMessage[] = [];
   private abort?: AbortController;
   private approvals = new Map<string, (ok: boolean) => void>();
+  // Plan z trybu planu, który czeka na „Wykonaj plan”.
+  private plan?: PlanStep[];
   private pendingText?: string;
   private pendingCfg = false;
 
@@ -75,6 +77,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case "stop":
             this.abort?.abort();
             break;
+          case "executePlan":
+            // Przycisk ze starej karty (np. po nowej wiadomości) nie ma już planu do wykonania.
+            if (this.plan) {
+              await this.chat(t("planRun"), this.plan);
+            }
+            break;
           case "newChat":
             this.newChat();
             break;
@@ -105,7 +113,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           }
           case "setFlag":
-            if (msg.key === "autonomousMode" || msg.key === "reviewer") {
+            if (msg.key === "autonomousMode" || msg.key === "reviewer" || msg.key === "planMode") {
               await setFlag(msg.key, Boolean(msg.value));
             }
             this.post({ type: "flags", ...flags() });
@@ -136,6 +144,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   newChat(): void {
     this.abort?.abort();
     this.history = [];
+    this.plan = undefined;
     this.post({ type: "cleared" });
   }
 
@@ -162,24 +171,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: "prefill", text });
   }
 
-  private async chat(userText: string): Promise<void> {
+  // approved: plan zatwierdzony przyciskiem; agent go wykonuje, zamiast planować od nowa.
+  private async chat(userText: string, approved?: PlanStep[]): Promise<void> {
     if (this.abort) {
       this.post({ type: "error", message: t("busyWait") });
       return;
     }
+    // Każda nowa wiadomość zamyka plan czekający na zgodę; poprawki do planu tworzą nowy.
+    this.plan = undefined;
     this.post({ type: "user", text: userText });
     this.post({ type: "busy", value: true });
     this.abort = new AbortController();
     try {
-      this.history = await runAgent({
+      const res = await runAgent({
         history: this.history,
-        userText,
+        userText: approved ? approvedPlanPrompt(approved) : userText,
+        planMode: !approved && getConfig().planMode,
         signal: this.abort.signal,
         host: {
           post: (m) => this.post(m),
           waitApproval: (id, kind, name, args) => this.waitApproval(id, kind, name, args),
         },
       });
+      this.history = res.history;
+      this.plan = res.plan;
+      if (res.plan) {
+        this.post({ type: "planReady" });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (message !== ABORTED && !this.abort.signal.aborted) {
@@ -324,6 +342,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <button class="chip switch" data-flag="reviewer" role="switch" aria-checked="false" ${attr("title", "reviewerTitle")}>
           <span class="track"><span class="knob"></span></span><span ${tx("reviewer")}</span>
         </button>
+        <button class="chip switch" data-flag="planMode" role="switch" aria-checked="false" ${attr("title", "planTitle")}>
+          <span class="track"><span class="knob"></span></span><span ${tx("plan")}</span>
+        </button>
         <button id="stop" class="icon-btn stop" hidden ${attr("title", "stop")} ${attr("aria-label", "stop")}>
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
         </button>
@@ -357,12 +378,12 @@ export async function pickModel(): Promise<void> {
   }
 }
 
-function flags(): { autonomousMode: boolean; reviewer: boolean } {
-  const { autonomousMode, reviewer } = getConfig();
-  return { autonomousMode, reviewer };
+function flags(): { autonomousMode: boolean; reviewer: boolean; planMode: boolean } {
+  const { autonomousMode, reviewer, planMode } = getConfig();
+  return { autonomousMode, reviewer, planMode };
 }
 
-async function setFlag(key: "autonomousMode" | "reviewer", on: boolean): Promise<void> {
+async function setFlag(key: "autonomousMode" | "reviewer" | "planMode", on: boolean): Promise<void> {
   if (key === "autonomousMode" && on) {
     const button = t("autoConfirmButton");
     const ok = await vscode.window.showWarningMessage(

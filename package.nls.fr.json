@@ -19,7 +19,8 @@
   "cfg.autoApproveTerminal": "Lancer des commandes terminal sans confirmation",
   "cfg.commandTimeoutMs": "Délai maximal d'une commande (ms)",
   "cfg.autonomousMode": "Mode autonome : le modèle écrit des fichiers et lance des commandes SANS demander. À activer seulement dans des projets de confiance.",
-  "cfg.reviewer": "Relecteur : après des modifications de fichiers, un second passage du modèle vérifie que la tâche a été faite. Les manques retournent à l'agent (2 tours de correction max.).",
+  "cfg.reviewer": "Relecteur : après des modifications de fichiers, un second passage du modèle vérifie que la tâche a été faite. Les manques retournent à l'agent (4 tours de correction max.).",
+  "cfg.planMode": "Mode plan : l'agent lit d'abord le code et enregistre un plan d'étapes (outils de lecture seule). Les modifications ne commencent qu'après un clic sur « Exécuter le plan » dans le chat.",
   "cfg.language": "Langue de l'interface",
   "cfg.language.auto": "Comme VS Code (anglais si non prise en charge)"
 }

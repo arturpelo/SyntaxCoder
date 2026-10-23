@@ -2,7 +2,7 @@
   "name": "syntaxcoder",
   "displayName": "SyntaxCoder",
   "description": "%description%",
-  "version": "0.8.0",
+  "version": "0.8.5",
   "private": true,
   "publisher": "arturpelo",
   "author": {
@@ -195,6 +195,11 @@
           "type": "boolean",
           "default": false,
           "description": "%cfg.reviewer%"
+        },
+        "syntaxcoder.planMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.planMode%"
         },
         "syntaxcoder.language": {
           "type": "string",

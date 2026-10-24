@@ -98,6 +98,40 @@ export async function checkServer(): Promise<string> {
   return model || models[0];
 }
 
+// Surowe dokończenie tekstu (/v1/completions), bez szablonu czatu; dla podpowiedzi w edytorze.
+export async function complete(opts: {
+  model: string;
+  prompt: string;
+  stop: string[];
+  maxTokens: number;
+  temperature: number;
+  signal: AbortSignal;
+}): Promise<string> {
+  const cfg = getConfig();
+  const res = await request(`${cfg.baseUrl}/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: opts.model,
+      prompt: opts.prompt,
+      stop: opts.stop,
+      max_tokens: opts.maxTokens,
+      temperature: opts.temperature,
+      stream: false,
+    }),
+    signal: opts.signal,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`LM Studio ${res.status}: ${text || res.statusText}`);
+  }
+  const data = (await res.json().catch(() => null)) as { choices?: { text?: string }[] } | null;
+  return data?.choices?.[0]?.text ?? "";
+}
+
 export async function streamChat(opts: {
   messages: ChatMessage[];
   tools: ToolDef[];

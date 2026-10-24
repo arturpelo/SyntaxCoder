@@ -21,6 +21,8 @@
   "cfg.autonomousMode": "Autonomous mode: the model writes files and runs commands WITHOUT asking. Turn on only in projects you trust.",
   "cfg.reviewer": "Reviewer: after file changes, a second model pass checks the task from the prompt was done. Gaps go back to the agent (max 4 fix rounds).",
   "cfg.planMode": "Plan mode: the agent first reads the code and saves a plan of steps (read-only tools). Changes start only after you click Execute plan in the chat.",
+  "cfg.inlineCompletions": "Inline suggestions: as you type, the model suggests the rest of the code as grey text (Tab accepts). The code around the cursor goes to LM Studio; files with secrets (.env, *.key …) are skipped.",
+  "cfg.completionModel": "LM Studio model for inline suggestions. Empty = chat model. A small coder model with fill-in-the-middle (e.g. Qwen2.5-Coder 1.5B) answers fastest.",
   "cfg.language": "Interface language",
   "cfg.language.auto": "Same as VS Code (English if not supported)"
 }

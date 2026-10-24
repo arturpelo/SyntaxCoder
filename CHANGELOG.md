@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Podpowiedzi kodu w edytorze: przełącznik **Inline suggestions** przy polu wiadomości (`syntaxcoder.inlineCompletions`). Na pasku widać skrót **Inline**, a pełna nazwa rozwija się po najechaniu myszą. Gdy piszesz, model z LM Studio proponuje dalszy ciąg kodu szarym tekstem, a **Tab** go przyjmuje.
+- Zapytanie (`/v1/completions`, fill-in-the-middle) idzie po 300 ms przerwy w pisaniu. Następny klawisz anuluje to zapytanie. Szablon FIM rozszerzenie dobiera po nazwie modelu: Qwen-Coder (domyślny), DeepSeek-Coder, StarCoder albo CodeLlama.
+- Początek kontekstu przesuwa się co 40 linii, a nie z każdym klawiszem, więc LM Studio używa zapamiętanego przetworzenia promptu i kolejne podpowiedzi przychodzą szybciej.
+- Podpowiedzi biorą model z czatu. Osobny model ustawisz w `syntaxcoder.completionModel` (tylko ustawienia użytkownika). Pliki z sekretami (`.env`, `*.key` itp.) są pomijane. Błąd serwera pokazuje się raz, a nie przy każdym klawiszu.
+- Przełączniki (**Auto**, **Recenzent**, **Plan**, **Inline**) są w osobnej linii pod paskiem z modelem, oddzielone kreską.
+
 ## 0.8.5
 
 - Plan zadania: nowe narzędzie `update_plan`. Agent zapisuje w nim kroki zadania, a czat pokazuje je jako jedną listę ze stanem kroków (do zrobienia, w toku, zrobione), aktualizowaną na bieżąco.

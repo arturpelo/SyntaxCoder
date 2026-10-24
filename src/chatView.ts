@@ -113,7 +113,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           }
           case "setFlag":
-            if (msg.key === "autonomousMode" || msg.key === "reviewer" || msg.key === "planMode") {
+            if (isFlag(msg.key)) {
               await setFlag(msg.key, Boolean(msg.value));
             }
             this.post({ type: "flags", ...flags() });
@@ -336,6 +336,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <button id="modelBtn" class="chip">
           <span id="dot" class="dot off"></span><span id="modelName" ${tx("connecting")}</span>
         </button>
+        <button id="stop" class="icon-btn stop" hidden ${attr("title", "stop")} ${attr("aria-label", "stop")}>
+          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
+        </button>
+        <button id="send" class="icon-btn" ${attr("title", "send")} ${attr("aria-label", "send")}>
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="bar flags">
         <button class="chip switch" data-flag="autonomousMode" role="switch" aria-checked="false" ${attr("title", "autoTitle")}>
           <span class="track"><span class="knob"></span></span><span ${tx("auto")}</span>
         </button>
@@ -345,11 +353,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <button class="chip switch" data-flag="planMode" role="switch" aria-checked="false" ${attr("title", "planTitle")}>
           <span class="track"><span class="knob"></span></span><span ${tx("plan")}</span>
         </button>
-        <button id="stop" class="icon-btn stop" hidden ${attr("title", "stop")} ${attr("aria-label", "stop")}>
-          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
-        </button>
-        <button id="send" class="icon-btn" ${attr("title", "send")} ${attr("aria-label", "send")}>
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <button class="chip switch" data-flag="inlineCompletions" role="switch" aria-checked="false" ${attr("title", "hintsTitle")}>
+          <span class="track"><span class="knob"></span></span><span><span ${tx("hints")}</span><span class="more" ${tx("hintsMore")}</span></span>
         </button>
       </div>
     </div>
@@ -378,12 +383,20 @@ export async function pickModel(): Promise<void> {
   }
 }
 
-function flags(): { autonomousMode: boolean; reviewer: boolean; planMode: boolean } {
-  const { autonomousMode, reviewer, planMode } = getConfig();
-  return { autonomousMode, reviewer, planMode };
+// Przełączniki przy polu wiadomości; każdy to ustawienie boolean o tej samej nazwie.
+const FLAGS = ["autonomousMode", "reviewer", "planMode", "inlineCompletions"] as const;
+type Flag = (typeof FLAGS)[number];
+
+function isFlag(key: string | undefined): key is Flag {
+  return (FLAGS as readonly (string | undefined)[]).includes(key);
 }
 
-async function setFlag(key: "autonomousMode" | "reviewer" | "planMode", on: boolean): Promise<void> {
+function flags(): Record<Flag, boolean> {
+  const cfg = getConfig();
+  return Object.fromEntries(FLAGS.map((k) => [k, cfg[k]])) as Record<Flag, boolean>;
+}
+
+async function setFlag(key: Flag, on: boolean): Promise<void> {
   if (key === "autonomousMode" && on) {
     const button = t("autoConfirmButton");
     const ok = await vscode.window.showWarningMessage(

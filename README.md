@@ -13,6 +13,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 - Przełącznik **Auto** przy polu wiadomości włącza tryb autonomiczny (po potwierdzeniu).
 - Przełącznik **Recenzent**: gdy agent zmieni pliki, drugi przebieg modelu (tylko z narzędziami do odczytu) sprawdza w plikach, czy polecenie zostało wykonane. Braki wracają do agenta, maksymalnie 4 rundy poprawek.
 - Przełącznik **Plan** (tryb planu): agent najpierw czyta kod (tylko narzędzia do odczytu) i zapisuje plan kroków. Nic się nie zmienia, dopóki nie klikniesz **Wykonaj plan** pod planem. Zamiast tego możesz napisać, co w planie zmienić, a agent zapisze nowy plan. Przy wykonaniu agent odhacza kolejne kroki, a recenzent (gdy włączony) sprawdza każdy krok planu.
+- Przełącznik **Inline suggestions** (na pasku widać skrót **Inline**, pełna nazwa rozwija się po najechaniu myszą): gdy piszesz w edytorze, model proponuje dalszy ciąg kodu szarym tekstem. **Tab** przyjmuje podpowiedź, **Esc** ją odrzuca. Podpowiedź pojawia się po krótkiej przerwie w pisaniu. Model dostaje kod przed kursorem i za nim (fill-in-the-middle). Podpowiedzi biorą model wybrany w czacie. Inny model ustawisz w `syntaxcoder.completionModel`. Najlepiej sprawdza się jeden model do kodu typu MoE do wszystkiego, np. Qwen3-Coder-30B-A3B Instruct: na MacBooku Pro M1 Max (MLX 8-bit) podpowiada w 0,7–1,2 s, a agent dostaje odpowiedź w 1–4 s. Gęste modele są wolniejsze: Qwen2.5-Coder-14B podpowiada w ok. 2 s, a model 27B w 3–7 s. Przy mniejszej ilości pamięci wybierz mały model, np. Qwen2.5-Coder 1.5B albo 7B. Gdy w LM Studio jest włączone **Only Keep Last JIT Loaded Model**, dwa różne modele (czat i podpowiedzi) wyrzucają się nawzajem z pamięci i każde przełączenie trwa kilkanaście sekund. Szablon FIM rozszerzenie dobiera po nazwie modelu: Qwen-Coder (domyślny), DeepSeek-Coder, StarCoder albo CodeLlama.
 - Agent, który powtarza te same kroki bez postępu, dostaje wskazówkę, żeby zmienić podejście, a gdy to nie pomoże, zostaje zatrzymany.
 - Wybór modelu z listy modeli załadowanych w LM Studio.
 - **Dodaj zaznaczenie do czatu** w menu kontekstowym edytora.
@@ -47,6 +48,8 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 | `syntaxcoder.autonomousMode` | `false` | Wszystko bez pytania |
 | `syntaxcoder.reviewer` | `false` | Recenzent sprawdza wykonanie zadania |
 | `syntaxcoder.planMode` | `false` | Tryb planu: najpierw plan, zmiany dopiero po **Wykonaj plan** |
+| `syntaxcoder.inlineCompletions` | `false` | Inline suggestions: podpowiedzi kodu w edytorze (szary tekst, **Tab** przyjmuje) |
+| `syntaxcoder.completionModel` | puste | Model do podpowiedzi; puste = model czatu |
 | `syntaxcoder.language` | `auto` | Język interfejsu: `auto` (jak VS Code), `en`, `de`, `fr`, `pl` |
 | `syntaxcoder.commandTimeoutMs` | `60000` | Limit czasu jednej komendy (ms) |
 
@@ -56,9 +59,9 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 - Agent działa tylko w otwartym folderze (workspace). Ścieżek spoza niego nie dotyka, także przez dowiązania symboliczne i junction.
 - Rozszerzenie działa tylko w **zaufanych** folderach (Workspace Trust), bo może uruchamiać komendy.
 - `autonomousMode`, `autoApproveWrites` i `autoApproveTerminal` wyłączają pytania o zgodę. Model może wtedy sam zmieniać pliki i uruchamiać dowolne komendy. Włączaj je tylko w projektach, którym ufasz.
-- Te trzy ustawienia oraz ustawienia połączenia (`host`, `port`, `https`, `apiKey`, `model`) i `commandTimeoutMs` działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium ich nie zmieni, więc nie przekieruje tokena na obcy serwer.
+- Te trzy ustawienia oraz ustawienia połączenia (`host`, `port`, `https`, `apiKey`, `model`, `completionModel`) i `commandTimeoutMs` działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium ich nie zmieni, więc nie przekieruje tokena na obcy serwer.
 - Zapis do `.git`, `.vscode`, `.devcontainer` i `.husky` zawsze wymaga zgody (poza trybem autonomicznym), bo hooki gita i zadania VS Code mogą uruchamiać kod.
-- `read_file` i `grep` nie czytają plików z sekretami (`.env`, `.env.local`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`). Pliki `.env.example` czyta normalnie.
+- `read_file`, `grep` i podpowiedzi kodu nie czytają plików z sekretami (`.env`, `.env.local`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`). Pliki `.env.example` czyta normalnie.
 - `delete_path` przenosi pliki do kosza systemowego, jeśli się da.
 - Połączenie przez HTTP (np. LM Studio w sieci lokalnej) wysyła token i kod otwartym tekstem. Ktoś w tej samej sieci może je podejrzeć albo podmienić odpowiedzi modelu. Przy HTTP poza własnym komputerem nie włączaj trybu autonomicznego ani `autoApproveTerminal`.
 - Wyjście komend agenta widać w panelu **Output → SyntaxCoder**.

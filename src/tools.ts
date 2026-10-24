@@ -357,7 +357,7 @@ export function isProtectedWrite(rawArgs: string): boolean {
   });
 }
 
-function isSecretFile(abs: string): boolean {
+export function isSecretFile(abs: string): boolean {
   const name = path.basename(abs);
   return SECRET.test(name) && !SECRET_OK.test(name);
 }

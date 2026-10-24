@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ChatViewProvider, pickModel } from "./chatView";
+import { InlineCompletionProvider } from "./completion";
 import { isTokenKey, loadApiToken } from "./config";
 import { t } from "./i18n";
 
@@ -28,6 +29,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("syntaxcoder.stop", () => provider.stop()),
     vscode.commands.registerCommand("syntaxcoder.pickModel", () => pickModel()),
     vscode.commands.registerCommand("syntaxcoder.connection", () => provider.toggleConnection()),
+    // Zawsze zarejestrowany; przełącznik Inline suggestions sprawdza sam provider.
+    vscode.languages.registerInlineCompletionItemProvider(
+      [{ scheme: "file" }, { scheme: "untitled" }],
+      new InlineCompletionProvider()
+    ),
     vscode.commands.registerCommand("syntaxcoder.addSelection", async () => {
       const ed = vscode.window.activeTextEditor;
       if (!ed || ed.selection.isEmpty) {

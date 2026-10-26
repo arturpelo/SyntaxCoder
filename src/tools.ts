@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import { realpathSync } from "fs";
+import { createHash } from "crypto";
 import * as path from "path";
 import { spawn } from "child_process";
 import * as vscode from "vscode";
@@ -355,6 +356,15 @@ export function isProtectedWrite(rawArgs: string): boolean {
     const first = path.relative(root, path.resolve(root, p.replace(/\\/g, "/"))).split(path.sep)[0];
     return PROTECTED_DIRS.has(first.toLowerCase());
   });
+}
+
+// Odcisk treści pliku: agent wykrywa nim edycje, które się nawzajem cofają. Brak pliku = undefined.
+export async function fingerprint(rel: string): Promise<string | undefined> {
+  try {
+    return createHash("sha1").update(await fs.readFile(resolveInWorkspace(rel))).digest("hex");
+  } catch {
+    return undefined;
+  }
 }
 
 export function isSecretFile(abs: string): boolean {

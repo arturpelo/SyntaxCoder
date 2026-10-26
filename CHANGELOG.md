@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0
+
+- Przełącznik **Web** (`syntaxcoder.webTools`, domyślnie wyłączony): agent dostaje narzędzia serwerów MCP po HTTP z `syntaxcoder.mcpServers`. Domyślnie to context7 (dokumentacja bibliotek), grep.app (kod na GitHubie) i DeepWiki (dokumentacja repozytoriów). Agent woła je bez pytania. Wyniki trafiają do modelu jako dane, nie polecenia. Serwer, który nie odpowiada, wypada z listy z krótką informacją. Oba ustawienia działają tylko z ustawień użytkownika.
+- Szturchaniec zamiast twardego stopu. Agent, który kręci się w kółko, najpierw dostaje wskazówkę, co dokładnie się powtarza, potem turę namysłu bez narzędzi, potem drugą wskazówkę. Dopiero na końcu kończy pracę własnym podsumowaniem (co zrobione, co nie, co blokuje) zamiast samego czerwonego błędu. Tak samo kończy się praca po limicie rund narzędzi. Tura z nowym wynikiem obniża poziom szturchania.
+- Nowe sygnały kręcenia się w kółko:
+  - to samo wywołanie z błędem po raz kolejny;
+  - seria nieudanych zmian jednego pliku (wskazówka: przeczytaj plik ponownie, przepisz go `write_file`);
+  - zmiana, która nie zmieniła pliku;
+  - edycje, które cofają plik do stanu, w którym już był.
+- Szturchnięcia i namysł agenta widać w czacie jako szare linie informacyjne.
+
 ## 0.9.1
 
 - Podpowiedź kończy się na domkniętym bloku, jak w Copilocie: pętla z podpętlami i ifami przychodzi w całości, do swojego `}`. Model dostaje strumień do 512 tokenów (było 128) i przestaje generować, gdy blok się domknie. Gdy mimo to urwie w środku, podpowiedź kończy się na ostatniej linii bez otwartych nawiasów, więc nigdy nie zostawia niedomkniętego bloku. Nawiasy w napisach i komentarzach się nie liczą.

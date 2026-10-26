@@ -337,6 +337,11 @@ window.addEventListener("message", (ev) => {
       currentAssistant = null;
       append(el(`<div class="msg error">${esc(m.message)}</div>`));
       break;
+    case "notice":
+      endReasoning();
+      currentAssistant = null;
+      append(el(`<div class="notice">${esc(m.text)}</div>`));
+      break;
     case "busy":
       busy = m.value;
       document.body.classList.toggle("busy", busy);

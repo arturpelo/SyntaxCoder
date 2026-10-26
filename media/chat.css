@@ -127,6 +127,8 @@ button.ghost:hover { background: var(--ghost-hover); }
 .msg.reviewer { padding-left: 10px; border-left: 2px solid var(--vscode-charts-purple, #b180d7); }
 .review-mark { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .review-mark::before, .review-mark::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+/* Informacja o przebiegu pracy agenta (np. szturchnięcie): spokojna, nie czerwona jak błąd. */
+.notice { font-size: 11px; color: var(--muted); text-align: center; }
 .verdict {
   display: flex;
   align-items: center;
@@ -333,6 +335,7 @@ textarea::placeholder { color: var(--vscode-input-placeholderForeground, var(--m
 .switch[data-flag="reviewer"][aria-checked="true"] { --on: var(--vscode-charts-purple, #b180d7); }
 .switch[data-flag="planMode"][aria-checked="true"] { --on: var(--plan); }
 .switch[data-flag="inlineCompletions"][aria-checked="true"] { --on: var(--ok); }
+.switch[data-flag="webTools"][aria-checked="true"] { --on: var(--vscode-charts-orange, #d18616); }
 .switch[aria-checked="true"] .track { background: var(--on); }
 .switch[aria-checked="true"] .knob { transform: translateX(9px); background: var(--bg); }
 #modelName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

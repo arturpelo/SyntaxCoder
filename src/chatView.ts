@@ -356,6 +356,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <button class="chip switch" data-flag="inlineCompletions" role="switch" aria-checked="false" ${attr("title", "hintsTitle")}>
           <span class="track"><span class="knob"></span></span><span ${tx("hints")}</span>
         </button>
+        <button class="chip switch" data-flag="webTools" role="switch" aria-checked="false" ${attr("title", "webTitle")}>
+          <span class="track"><span class="knob"></span></span><span ${tx("web")}</span>
+        </button>
       </div>
     </div>
   </footer>
@@ -384,7 +387,7 @@ export async function pickModel(): Promise<void> {
 }
 
 // Przełączniki przy polu wiadomości; każdy to ustawienie boolean o tej samej nazwie.
-const FLAGS = ["autonomousMode", "reviewer", "planMode", "inlineCompletions"] as const;
+const FLAGS = ["autonomousMode", "reviewer", "planMode", "inlineCompletions", "webTools"] as const;
 type Flag = (typeof FLAGS)[number];
 
 function isFlag(key: string | undefined): key is Flag {

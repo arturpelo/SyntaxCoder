@@ -17,6 +17,8 @@ export interface SyntaxCoderConfig {
   planMode: boolean;
   inlineCompletions: boolean;
   completionModel: string;
+  webTools: boolean;
+  mcpServers: Record<string, { type?: string; url: string }>;
   commandTimeoutMs: number;
 }
 
@@ -71,6 +73,8 @@ export function getConfig(): SyntaxCoderConfig {
     planMode: c.get<boolean>("planMode", false),
     inlineCompletions: c.get<boolean>("inlineCompletions", false),
     completionModel: c.get<string>("completionModel", "").trim(),
+    webTools: c.get<boolean>("webTools", false),
+    mcpServers: c.get<Record<string, { type?: string; url: string }>>("mcpServers", {}),
     commandTimeoutMs: c.get<number>("commandTimeoutMs", 60000),
   };
 }

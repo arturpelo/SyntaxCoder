@@ -202,7 +202,8 @@ export async function streamChat(opts: {
     body: JSON.stringify({
       model,
       messages: opts.messages,
-      tools: opts.tools,
+      // Tura bez narzędzi (np. namysł agenta): pusta lista potrafi zmylić serwer, więc jej nie wysyłamy.
+      ...(opts.tools.length ? { tools: opts.tools } : {}),
       temperature: cfg.temperature,
       max_tokens: cfg.maxTokens,
       stream: true,

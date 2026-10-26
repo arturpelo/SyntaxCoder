@@ -2,7 +2,7 @@
 
 Agentowy asystent kodu w VS Code działający na **Twoim własnym modelu w [LM Studio](https://lmstudio.ai/)**: lokalnie albo na innym komputerze w sieci. Rozmawiasz w czacie, a agent czyta i edytuje pliki, tworzy foldery i uruchamia komendy w projekcie.
 
-Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, który sam wskażesz.
+Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, który sam wskażesz. Wyjątek to przełącznik **Web** (domyślnie wyłączony): wtedy agent może pytać serwery MCP w internecie, opisane niżej.
 
 ## Funkcje
 
@@ -14,7 +14,15 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 - Przełącznik **Recenzent**: gdy agent zmieni pliki, drugi przebieg modelu (tylko z narzędziami do odczytu) sprawdza w plikach, czy polecenie zostało wykonane. Braki wracają do agenta, maksymalnie 4 rundy poprawek.
 - Przełącznik **Plan** (tryb planu): agent najpierw czyta kod (tylko narzędzia do odczytu) i zapisuje plan kroków. Nic się nie zmienia, dopóki nie klikniesz **Wykonaj plan** pod planem. Zamiast tego możesz napisać, co w planie zmienić, a agent zapisze nowy plan. Przy wykonaniu agent odhacza kolejne kroki, a recenzent (gdy włączony) sprawdza każdy krok planu.
 - Przełącznik **Inline** (inline suggestions): gdy piszesz w edytorze, model proponuje dalszy ciąg kodu szarym tekstem. **Tab** przyjmuje podpowiedź, **Esc** ją odrzuca. Podpowiedź pojawia się po krótkiej przerwie w pisaniu i kończy się na domkniętym bloku: pętla czy `if` przychodzi w całości, do swojego `}` (w Pythonie do końca wcięcia), a nigdy nie zostaje urwana w środku. W środku linii podpowiedź pojawia się tylko wtedy, gdy za kursorem są same spacje albo nawiasy zamykające. Gdy piszesz to, co jest w szarym tekście, reszta zostaje bez nowego zapytania. Z modelami Qwen-Coder podpowiedź widzi też najbardziej podobne fragmenty innych otwartych plików w tym samym języku (do ok. 3000 znaków), więc korzysta z funkcji i typów zdefiniowanych gdzie indziej. Te fragmenty też trafiają do LM Studio, z wyjątkiem plików z sekretami. Model dostaje kod przed kursorem i za nim (fill-in-the-middle). Podpowiedzi biorą model wybrany w czacie. Inny model ustawisz w `syntaxcoder.completionModel`. Najlepiej sprawdza się jeden model do kodu typu MoE do wszystkiego, np. Qwen3-Coder-30B-A3B Instruct: na MacBooku Pro M1 Max (MLX 8-bit) podpowiada w 0,7–1,2 s, a agent dostaje odpowiedź w 1–4 s. Gęste modele są wolniejsze: Qwen2.5-Coder-14B podpowiada w ok. 2 s, a model 27B w 3–7 s. Przy mniejszej ilości pamięci wybierz mały model, np. Qwen2.5-Coder 1.5B albo 7B. Gdy w LM Studio jest włączone **Only Keep Last JIT Loaded Model**, dwa różne modele (czat i podpowiedzi) wyrzucają się nawzajem z pamięci i każde przełączenie trwa kilkanaście sekund. Szablon FIM rozszerzenie dobiera po nazwie modelu: Qwen-Coder (domyślny), DeepSeek-Coder, StarCoder albo CodeLlama.
-- Agent, który powtarza te same kroki bez postępu, dostaje wskazówkę, żeby zmienić podejście, a gdy to nie pomoże, zostaje zatrzymany.
+- Przełącznik **Web**: agent dostaje narzędzia serwerów MCP po HTTP z `syntaxcoder.mcpServers`. Domyślnie to [context7](https://context7.com) (aktualna dokumentacja bibliotek), [grep.app](https://grep.app) (wyszukiwanie kodu na GitHubie) i [DeepWiki](https://deepwiki.com) (dokumentacja repozytoriów). Agent woła je bez pytania, a w czacie widać każde wywołanie. Serwer, który nie odpowiada, wypada z listy z krótką informacją, a praca idzie dalej.
+- Agent, który kręci się w kółko, dostaje szturchańca zamiast twardego stopu. Rozszerzenie wykrywa:
+  - to samo wywołanie z tym samym wynikiem;
+  - to samo wywołanie, które za każdym razem kończy się błędem;
+  - serię nieudanych zmian jednego pliku;
+  - zmianę, która niczego nie zmieniła;
+  - edycje, które cofają plik do stanu, w którym już był.
+
+  Najpierw agent dostaje wskazówkę, co dokładnie się powtarza. Potem robi turę namysłu bez narzędzi: mówi, co próbował i co zrobi inaczej. Dopiero gdy i to nie pomoże, kończy pracę własnym podsumowaniem: co zrobione, co nie i co blokuje. Tak samo kończy się praca po wykorzystaniu limitu rund narzędzi.
 - Wybór modelu z listy modeli załadowanych w LM Studio.
 - **Dodaj zaznaczenie do czatu** w menu kontekstowym edytora.
 - Interfejs po angielsku, niemiecku, francusku i polsku.
@@ -50,6 +58,8 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 | `syntaxcoder.planMode` | `false` | Tryb planu: najpierw plan, zmiany dopiero po **Wykonaj plan** |
 | `syntaxcoder.inlineCompletions` | `false` | Inline suggestions: podpowiedzi kodu w edytorze (szary tekst, **Tab** przyjmuje) |
 | `syntaxcoder.completionModel` | puste | Model do podpowiedzi; puste = model czatu |
+| `syntaxcoder.webTools` | `false` | Przełącznik **Web**: narzędzia serwerów MCP dla agenta |
+| `syntaxcoder.mcpServers` | context7, grep, deepwiki | Serwery MCP po HTTP: `"nazwa": { "type": "http", "url": "https://…" }` |
 | `syntaxcoder.language` | `auto` | Język interfejsu: `auto` (jak VS Code), `en`, `de`, `fr`, `pl` |
 | `syntaxcoder.commandTimeoutMs` | `60000` | Limit czasu jednej komendy (ms) |
 
@@ -59,7 +69,8 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 - Agent działa tylko w otwartym folderze (workspace). Ścieżek spoza niego nie dotyka, także przez dowiązania symboliczne i junction.
 - Rozszerzenie działa tylko w **zaufanych** folderach (Workspace Trust), bo może uruchamiać komendy.
 - `autonomousMode`, `autoApproveWrites` i `autoApproveTerminal` wyłączają pytania o zgodę. Model może wtedy sam zmieniać pliki i uruchamiać dowolne komendy. Włączaj je tylko w projektach, którym ufasz.
-- Te trzy ustawienia oraz ustawienia połączenia (`host`, `port`, `https`, `apiKey`, `model`, `completionModel`) i `commandTimeoutMs` działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium ich nie zmieni, więc nie przekieruje tokena na obcy serwer.
+- Te trzy ustawienia oraz ustawienia połączenia (`host`, `port`, `https`, `apiKey`, `model`, `completionModel`), `webTools`, `mcpServers` i `commandTimeoutMs` działają tylko z ustawień użytkownika. `.vscode/settings.json` w repozytorium ich nie zmieni, więc nie przekieruje tokena ani kodu na obcy serwer.
+- Przełącznik **Web** wysyła zapytania agenta do serwerów MCP w internecie, a zapytania mogą zawierać fragmenty kodu. Wyniki z sieci trafiają do modelu jako dane z dopiskiem, że to nie są polecenia. Strona w sieci może jednak próbować sterować modelem (prompt injection). Z tego powodu nie łącz **Web** z trybem **Auto** w projektach, w których zależy Ci na bezpieczeństwie: bez **Auto** każdy zapis i każda komenda nadal czekają na Twoją zgodę.
 - Zapis do `.git`, `.vscode`, `.devcontainer` i `.husky` zawsze wymaga zgody (poza trybem autonomicznym), bo hooki gita i zadania VS Code mogą uruchamiać kod.
 - `read_file`, `grep` i podpowiedzi kodu nie czytają plików z sekretami (`.env`, `.env.local`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`). Pliki `.env.example` czyta normalnie.
 - `delete_path` przenosi pliki do kosza systemowego, jeśli się da.

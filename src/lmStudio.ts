@@ -98,7 +98,49 @@ export async function checkServer(): Promise<string> {
   return model || models[0];
 }
 
+// Strumień SSE z LM Studio: pierwszy wybór (choices[0]) z każdego zdarzenia danych.
+async function* sseChoices(body: ReadableStream<Uint8Array>): AsyncGenerator<Record<string, unknown>> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        return;
+      }
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split(/\r?\n/);
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) {
+          continue;
+        }
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === "[DONE]") {
+          continue;
+        }
+        let json: Record<string, unknown>;
+        try {
+          json = JSON.parse(payload) as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+        const choice = (json.choices as Record<string, unknown>[] | undefined)?.[0];
+        if (choice) {
+          yield choice;
+        }
+      }
+    }
+  } finally {
+    // break u wywołującego zamyka połączenie, więc serwer przestaje generować.
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
 // Surowe dokończenie tekstu (/v1/completions), bez szablonu czatu; dla podpowiedzi w edytorze.
+// Strumień kończy się wcześniej, gdy done(tekst) zwróci true. truncated: model doszedł do limitu tokenów.
 export async function complete(opts: {
   model: string;
   prompt: string;
@@ -106,7 +148,8 @@ export async function complete(opts: {
   maxTokens: number;
   temperature: number;
   signal: AbortSignal;
-}): Promise<string> {
+  done: (text: string) => boolean;
+}): Promise<{ text: string; truncated: boolean }> {
   const cfg = getConfig();
   const res = await request(`${cfg.baseUrl}/completions`, {
     method: "POST",
@@ -120,16 +163,26 @@ export async function complete(opts: {
       stop: opts.stop,
       max_tokens: opts.maxTokens,
       temperature: opts.temperature,
-      stream: false,
+      stream: true,
     }),
     signal: opts.signal,
   });
-  if (!res.ok) {
+  if (!res.ok || !res.body) {
     const text = await res.text().catch(() => "");
     throw new Error(`LM Studio ${res.status}: ${text || res.statusText}`);
   }
-  const data = (await res.json().catch(() => null)) as { choices?: { text?: string }[] } | null;
-  return data?.choices?.[0]?.text ?? "";
+  let text = "";
+  let truncated = false;
+  for await (const choice of sseChoices(res.body)) {
+    if (typeof choice.text === "string") {
+      text += choice.text;
+    }
+    truncated = choice.finish_reason === "length";
+    if (opts.done(text)) {
+      break;
+    }
+  }
+  return { text, truncated };
 }
 
 export async function streamChat(opts: {
@@ -164,71 +217,41 @@ export async function streamChat(opts: {
 
   const acc: StreamAcc = { content: "", reasoning: "", tools: new Map() };
   let finishReason: string | null = null;
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  for await (const choice of sseChoices(res.body)) {
+    if (typeof choice.finish_reason === "string") {
+      finishReason = choice.finish_reason;
     }
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split(/\r?\n/);
-    buf = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) {
-        continue;
-      }
-      const payload = trimmed.slice(5).trim();
-      if (!payload || payload === "[DONE]") {
-        continue;
-      }
-      let json: Record<string, unknown>;
-      try {
-        json = JSON.parse(payload) as Record<string, unknown>;
-      } catch {
-        continue;
-      }
-      const choice = (json.choices as Record<string, unknown>[] | undefined)?.[0];
-      if (!choice) {
-        continue;
-      }
-      if (typeof choice.finish_reason === "string") {
-        finishReason = choice.finish_reason;
-      }
-      const delta = (choice.delta ?? choice.message ?? {}) as Record<string, unknown>;
-      if (typeof delta.content === "string" && delta.content) {
-        acc.content += delta.content;
-        opts.onDelta({ content: delta.content });
-      }
-      const reasoning =
-        (typeof delta.reasoning_content === "string" && delta.reasoning_content) ||
-        (typeof delta.reasoning === "string" && delta.reasoning) ||
-        "";
-      if (reasoning) {
-        acc.reasoning += reasoning;
-        opts.onDelta({ reasoning });
-      }
-      const tcs = delta.tool_calls as
-        | { index?: number; id?: string; function?: { name?: string; arguments?: string } }[]
-        | undefined;
-      if (tcs) {
-        for (const tc of tcs) {
-          const idx = tc.index ?? 0;
-          const prev = acc.tools.get(idx) ?? { id: "", name: "", arguments: "" };
-          if (tc.id) {
-            prev.id = tc.id;
-          }
-          if (tc.function?.name) {
-            prev.name += tc.function.name;
-          }
-          if (tc.function?.arguments) {
-            prev.arguments += tc.function.arguments;
-          }
-          acc.tools.set(idx, prev);
+    const delta = (choice.delta ?? choice.message ?? {}) as Record<string, unknown>;
+    if (typeof delta.content === "string" && delta.content) {
+      acc.content += delta.content;
+      opts.onDelta({ content: delta.content });
+    }
+    const reasoning =
+      (typeof delta.reasoning_content === "string" && delta.reasoning_content) ||
+      (typeof delta.reasoning === "string" && delta.reasoning) ||
+      "";
+    if (reasoning) {
+      acc.reasoning += reasoning;
+      opts.onDelta({ reasoning });
+    }
+    const tcs = delta.tool_calls as
+      | { index?: number; id?: string; function?: { name?: string; arguments?: string } }[]
+      | undefined;
+    if (tcs) {
+      for (const tc of tcs) {
+        const idx = tc.index ?? 0;
+        const prev = acc.tools.get(idx) ?? { id: "", name: "", arguments: "" };
+        if (tc.id) {
+          prev.id = tc.id;
         }
+        if (tc.function?.name) {
+          prev.name += tc.function.name;
+        }
+        if (tc.function?.arguments) {
+          prev.arguments += tc.function.arguments;
+        }
+        acc.tools.set(idx, prev);
       }
     }
   }

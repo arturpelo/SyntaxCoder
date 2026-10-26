@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.1
+
+- Podpowiedź kończy się na domkniętym bloku, jak w Copilocie: pętla z podpętlami i ifami przychodzi w całości, do swojego `}`. Model dostaje strumień do 512 tokenów (było 128) i przestaje generować, gdy blok się domknie. Gdy mimo to urwie w środku, podpowiedź kończy się na ostatniej linii bez otwartych nawiasów, więc nigdy nie zostawia niedomkniętego bloku. Nawiasy w napisach i komentarzach się nie liczą.
+- Python: koniec bloku wyznacza wcięcie. Podpowiedź kończy się, gdy blok po `:` się zamknie albo gdy kod wyjdzie z bloku, w którym stoi kursor. `elif`, `else`, `except`, `finally` i `case` należą do tego samego bloku. Nagłówek bez ciała (np. urwane `for x in y:`) odpada.
+- Gdy model dojdzie do limitu tokenów, ostatnia, niepełna linia odpada.
+- W środku linii podpowiedź pojawia się tylko wtedy, gdy za kursorem są same spacje albo nawiasy zamykające (jak w Copilocie). Mniej podpowiedzi w środku słowa i mniej zapytań do serwera.
+- Gdy piszesz dokładnie to, co jest w szarym tekście, reszta podpowiedzi zostaje od razu, bez nowego zapytania do modelu.
+- Podpowiedź, która powtarza tekst stojący już za kursorem albo kręci się w kółko (ta sama linia 3 razy, fraza typu `foo = foo = foo`), jest odrzucana.
+- Kontekst z innych plików (jak w Copilocie): podpowiedź widzi najbardziej podobne fragmenty innych otwartych plików w tym samym języku (C razem z C++, JS razem z TS), maksymalnie 3 fragmenty i ok. 3000 znaków. Używa ich w formacie repozytorium Qwen-Coder (`<|repo_name|>`, `<|file_sep|>`) razem ze ścieżką bieżącego pliku. Dzięki temu korzysta z funkcji i typów z innych plików zamiast je wymyślać. Wybór fragmentów zmienia się co 40 linii, żeby działała pamięć promptu w LM Studio. Pomiar na M1 Max z Qwen3-Coder-Next: pierwsza podpowiedź w bloku dłuższa o ok. 2 s, kolejne o ok. 0,3 s. Pliki z sekretami są pomijane. Inne szablony FIM (DeepSeek, StarCoder, CodeLlama) dostają tylko bieżący plik.
+- Przełącznik **Inline** ma stałą nazwę. Pełna nazwa nie rozwija się już po najechaniu myszą, bo pasek przełączników przy tym skakał. Opis nadal pokazuje dymek.
+
 ## 0.9.0
 
 - Podpowiedzi kodu w edytorze: przełącznik **Inline suggestions** przy polu wiadomości (`syntaxcoder.inlineCompletions`). Na pasku widać skrót **Inline**, a pełna nazwa rozwija się po najechaniu myszą. Gdy piszesz, model z LM Studio proponuje dalszy ciąg kodu szarym tekstem, a **Tab** go przyjmuje.

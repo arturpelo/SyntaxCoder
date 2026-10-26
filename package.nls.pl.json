@@ -21,7 +21,7 @@
   "cfg.autonomousMode": "Tryb autonomiczny: model zapisuje pliki i uruchamia komendy BEZ pytania. Włączaj tylko w projektach, którym ufasz.",
   "cfg.reviewer": "Recenzent: po zmianach plików drugi przebieg modelu sprawdza, czy zadanie z polecenia zostało wykonane. Braki wracają do agenta (maks. 4 rundy poprawek).",
   "cfg.planMode": "Tryb planu: agent najpierw czyta kod i zapisuje plan kroków (tylko narzędzia do odczytu). Zmiany zaczynają się dopiero po kliknięciu „Wykonaj plan” w czacie.",
-  "cfg.inlineCompletions": "Inline suggestions: gdy piszesz, model proponuje dalszy ciąg kodu szarym tekstem (Tab przyjmuje). Kod wokół kursora trafia do LM Studio; pliki z sekretami (.env, *.key …) są pomijane.",
+  "cfg.inlineCompletions": "Inline suggestions: gdy piszesz, model proponuje dalszy ciąg kodu szarym tekstem (Tab przyjmuje). Kod wokół kursora i podobne fragmenty innych otwartych plików w tym samym języku trafiają do LM Studio; pliki z sekretami (.env, *.key …) są pomijane.",
   "cfg.completionModel": "Model LM Studio do podpowiedzi kodu. Pusty = model czatu. Najszybciej odpowiada mały model do kodu z fill-in-the-middle (np. Qwen2.5-Coder 1.5B).",
   "cfg.language": "Język interfejsu",
   "cfg.language.auto": "Jak VS Code (angielski, gdy nieobsługiwany)"

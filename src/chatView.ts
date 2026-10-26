@@ -354,7 +354,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           <span class="track"><span class="knob"></span></span><span ${tx("plan")}</span>
         </button>
         <button class="chip switch" data-flag="inlineCompletions" role="switch" aria-checked="false" ${attr("title", "hintsTitle")}>
-          <span class="track"><span class="knob"></span></span><span><span ${tx("hints")}</span><span class="more" ${tx("hintsMore")}</span></span>
+          <span class="track"><span class="knob"></span></span><span ${tx("hints")}</span>
         </button>
       </div>
     </div>

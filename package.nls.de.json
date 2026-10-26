@@ -23,7 +23,7 @@
   "cfg.planMode": "Planmodus: Der Agent liest zuerst den Code und speichert einen Schrittplan (nur Lesewerkzeuge). Änderungen beginnen erst, wenn du im Chat auf „Plan ausführen“ klickst.",
   "cfg.inlineCompletions": "Inline suggestions: Beim Tippen schlägt das Modell die Fortsetzung des Codes als grauen Text vor (Tab übernimmt). Der Code um den Cursor und ähnliche Ausschnitte anderer geöffneter Dateien derselben Sprache gehen an LM Studio; Dateien mit Geheimnissen (.env, *.key …) werden übersprungen.",
   "cfg.completionModel": "LM-Studio-Modell für Code-Vorschläge. Leer = Chat-Modell. Ein kleines Code-Modell mit Fill-in-the-Middle (z. B. Qwen2.5-Coder 1.5B) antwortet am schnellsten.",
-  "cfg.webTools": "Web: Der Agent bekommt die Werkzeuge der MCP-Server aus syntaxcoder.mcpServers (Bibliotheksdokumentation, Code auf GitHub, Repository-Dokumentation) und ruft sie ohne Rückfrage auf. Seine Anfragen, die Codeausschnitte enthalten können, gehen an diese Server außerhalb deines Netzwerks.",
+  "cfg.webTools": "Web: Der Agent bekommt die Werkzeuge der MCP-Server aus syntaxcoder.mcpServers (Bibliotheksdokumentation, Code auf GitHub, Repository-Dokumentation) und ruft sie ohne Rückfrage auf. Seine Anfragen, die Codeausschnitte enthalten können, gehen an diese Server außerhalb deines Netzwerks. Beim Einschalten im Chat erscheint zuerst diese Warnung.",
   "cfg.mcpServers": "MCP-Server über HTTP für den Schalter Web: Name → { \"type\": \"http\", \"url\": \"https://…\" }.",
   "cfg.language": "Sprache der Oberfläche",
   "cfg.language.auto": "Wie VS Code (Englisch, falls nicht unterstützt)"

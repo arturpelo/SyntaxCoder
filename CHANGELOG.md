@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.20.0
+
+Poprawki z przeglądu kodu (code review) wydań 0.9.0–0.10.0:
+
+- Nieudane podsumowanie agenta (np. przepełniony kontekst po limicie rund, błąd sieci) nie kasuje już historii zadania. Czat dostaje błąd, a praca zostaje w rozmowie.
+- Prośba o podsumowanie nie tworzy dwóch wiadomości użytkownika pod rząd, których część modeli nie przyjmuje (np. Gemma, Mistral). Polecenie „przestań pracować” nie zostaje w historii, więc nie trafia do następnego zadania.
+- Podpowiedzi rozpoznają komentarze według języka. W Pythonie `//` to dzielenie, a nie komentarz. `#` jest komentarzem w Pythonie, Ruby, powłoce, YAML i innych, a `--` w SQL, Lua i Haskellu. Napisy w potrójnych cudzysłowach mogą mieć wiele linii. Wcześniej np. `(lo + hi // 2)` kasował całą podpowiedź.
+- Włączenie przełącznika **Web** pokazuje ostrzeżenie z listą serwerów: zapytania wychodzą poza Twoją sieć i mogą zawierać fragmenty kodu. Web włącza się dopiero po potwierdzeniu.
+- Web: martwy albo wolny serwer MCP nie spowalnia pracy. Zadanie czeka na łączące się serwery najwyżej 4 s, nieudane połączenie jest pamiętane przez 5 minut i zgłaszane raz, a wywołanie narzędzia trafia od razu do właściwego serwera.
+- Web: Stop zadania nie przerywa wspólnego połączenia z serwerem.
+- Web: błąd narzędzia albo złe argumenty od modelu nie porzucają działającej sesji. Po wygaśnięciu sesji (HTTP 404) rozszerzenie łączy się raz od nowa i ponawia wywołanie. Porzucana sesja jest zamykana.
+- Web: odpowiedź serwera jest czytana do 4 MB. Odpowiedź SSE kończy się, gdy tylko przyjdzie wynik, także wtedy, gdy serwer nie zamyka strumienia.
+- Web: dwie nazwy narzędzi, które po oczyszczeniu brzmią tak samo (np. `get.docs` i `get_docs`), dostają różne nazwy dla modelu.
+- Wszystkie przełączniki z czatu (`reviewer`, `planMode`, `inlineCompletions`) działają, jak `autonomousMode` i `webTools`, tylko z ustawień użytkownika. Repozytorium nie włączy już podpowiedzi ani nie zablokuje przełącznika.
+- Przy pustym `syntaxcoder.model` rozszerzenie pamięta pierwszy model z serwera przez minutę, zamiast pobierać listę modeli przy każdej podpowiedzi.
+
 ## 0.10.0
 
 - Przełącznik **Web** (`syntaxcoder.webTools`, domyślnie wyłączony): agent dostaje narzędzia serwerów MCP po HTTP z `syntaxcoder.mcpServers`. Domyślnie to context7 (dokumentacja bibliotek), grep.app (kod na GitHubie) i DeepWiki (dokumentacja repozytoriów). Agent woła je bez pytania. Wyniki trafiają do modelu jako dane, nie polecenia. Serwer, który nie odpowiada, wypada z listy z krótką informacją. Oba ustawienia działają tylko z ustawień użytkownika.

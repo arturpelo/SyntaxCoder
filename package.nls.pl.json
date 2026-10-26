@@ -23,7 +23,7 @@
   "cfg.planMode": "Tryb planu: agent najpierw czyta kod i zapisuje plan kroków (tylko narzędzia do odczytu). Zmiany zaczynają się dopiero po kliknięciu „Wykonaj plan” w czacie.",
   "cfg.inlineCompletions": "Inline suggestions: gdy piszesz, model proponuje dalszy ciąg kodu szarym tekstem (Tab przyjmuje). Kod wokół kursora i podobne fragmenty innych otwartych plików w tym samym języku trafiają do LM Studio; pliki z sekretami (.env, *.key …) są pomijane.",
   "cfg.completionModel": "Model LM Studio do podpowiedzi kodu. Pusty = model czatu. Najszybciej odpowiada mały model do kodu z fill-in-the-middle (np. Qwen2.5-Coder 1.5B).",
-  "cfg.webTools": "Web: agent dostaje narzędzia serwerów MCP z syntaxcoder.mcpServers (dokumentacja bibliotek, kod na GitHubie, dokumentacja repozytoriów) i woła je bez pytania. Jego zapytania, które mogą zawierać fragmenty kodu, trafiają do tych serwerów poza Twoją siecią.",
+  "cfg.webTools": "Web: agent dostaje narzędzia serwerów MCP z syntaxcoder.mcpServers (dokumentacja bibliotek, kod na GitHubie, dokumentacja repozytoriów) i woła je bez pytania. Jego zapytania, które mogą zawierać fragmenty kodu, trafiają do tych serwerów poza Twoją siecią. Włączenie w czacie najpierw pokazuje to ostrzeżenie.",
   "cfg.mcpServers": "Serwery MCP po HTTP dla przełącznika Web: nazwa → { \"type\": \"http\", \"url\": \"https://…\" }.",
   "cfg.language": "Język interfejsu",
   "cfg.language.auto": "Jak VS Code (angielski, gdy nieobsługiwany)"

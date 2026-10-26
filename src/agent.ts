@@ -37,6 +37,7 @@ const AFTER_REFLECT = "Now continue the task with the new approach.";
 const WRAP_UP =
   "Stop working on the task now and do not call tools. Tell the user briefly: what is done, what is not done, " +
   "what blocks it, and what the user can do to unblock it (for example, which details to give).";
+const WRAP_UP_IN_HISTORY = "Summarize where the task stands.";
 const NO_CHANGE_NUDGE =
   "You changed nothing, so the reviewer's gaps are still there. Use the tools to fix them now, " +
   "or explain exactly why a gap cannot be fixed.";
@@ -210,11 +211,26 @@ async function wrapUp(
   notice: string,
   opts: { signal: AbortSignal; host: AgentHost }
 ): Promise<void> {
+  // Szturchnięcie z ostatniej tury, na które model nie zdążył odpowiedzieć, zastępuje prośba o podsumowanie:
+  // bez dwóch wiadomości użytkownika pod rząd (część szablonów czatu ich nie przyjmuje).
+  if (messages.at(-1)?.role === "user") {
+    messages.pop();
+  }
   messages.push({ role: "user", content: WRAP_UP });
-  const message = await ask(messages, who, [], opts);
-  messages.push({ role: "assistant", content: message.content });
-  opts.host.post({ type: "assistantDone" });
-  opts.host.post({ type: "notice", text: notice });
+  try {
+    const message = await ask(messages, who, [], opts);
+    // W historii zostaje neutralna prośba: następne zadanie nie dostanie polecenia „przestań pracować”.
+    messages.splice(-1, 1, { role: "user", content: WRAP_UP_IN_HISTORY }, { role: "assistant", content: message.content });
+    opts.host.post({ type: "assistantDone" });
+    opts.host.post({ type: "notice", text: notice });
+  } catch (err) {
+    messages.pop();
+    if (opts.signal.aborted) {
+      throw err;
+    }
+    // Nieudane podsumowanie nie kasuje pracy: historia zadania zostaje, a czat dostaje błąd.
+    opts.host.post({ type: "error", message: `${notice} ${t("summaryFailed", err instanceof Error ? err.message : String(err))}` });
+  }
 }
 
 // Ścieżka pliku, który zmienia write_file albo edit_file (do wykrywania edycji bez postępu).

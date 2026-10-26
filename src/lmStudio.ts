@@ -70,15 +70,24 @@ export async function listModels(): Promise<string[]> {
   return data.data.map((m) => m.id);
 }
 
+// Pusty syntaxcoder.model = pierwszy model z serwera. Pamiętamy go chwilę, żeby podpowiedzi
+// nie pytały serwera o listę modeli przy każdej przerwie w pisaniu.
+const FIRST_MODEL_TTL_MS = 60_000;
+let firstModel: { id: string; baseUrl: string; at: number } | undefined;
+
 export async function resolveModel(): Promise<string> {
   const cfg = getConfig();
   if (cfg.model) {
     return cfg.model;
   }
+  if (firstModel && firstModel.baseUrl === cfg.baseUrl && Date.now() - firstModel.at < FIRST_MODEL_TTL_MS) {
+    return firstModel.id;
+  }
   const models = await listModels();
   if (!models.length) {
     throw new Error(t("noModelLoaded"));
   }
+  firstModel = { id: models[0], baseUrl: cfg.baseUrl, at: Date.now() };
   return models[0];
 }
 

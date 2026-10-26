@@ -400,19 +400,35 @@ function flags(): Record<Flag, boolean> {
 }
 
 async function setFlag(key: Flag, on: boolean): Promise<void> {
-  if (key === "autonomousMode" && on) {
+  // Auto działa bez pytania o zgodę, a Web wysyła zapytania (także z kodem) poza sieć:
+  // włączenie obu wymaga świadomego potwierdzenia.
+  const confirm =
+    on && key === "autonomousMode"
+      ? { title: t("autoConfirm"), detail: t("autoConfirmDetail") }
+      : on && key === "webTools"
+        ? { title: t("webConfirm"), detail: t("webConfirmDetail", webServers()) }
+        : undefined;
+  if (confirm) {
     const button = t("autoConfirmButton");
-    const ok = await vscode.window.showWarningMessage(
-      t("autoConfirm"),
-      { modal: true, detail: t("autoConfirmDetail") },
-      button
-    );
+    const ok = await vscode.window.showWarningMessage(confirm.title, { modal: true, detail: confirm.detail }, button);
     if (ok !== button) {
       return;
     }
   }
-  // Zawsze ustawienia użytkownika: zgody mają scope "application", repo ich nie nadpisze.
+  // Zawsze ustawienia użytkownika: przełączniki mają scope "application", repo ich nie nadpisze.
   await vscode.workspace.getConfiguration("syntaxcoder").update(key, on, vscode.ConfigurationTarget.Global);
+}
+
+// Serwery Web do ostrzeżenia: nazwa i host, żeby było widać, dokąd pójdą zapytania.
+function webServers(): string {
+  const list = Object.entries(getConfig().mcpServers).map(([name, s]) => {
+    try {
+      return `${name} (${new URL(s.url).host})`;
+    } catch {
+      return name;
+    }
+  });
+  return list.join(", ") || "—";
 }
 
 function esc(s: string): string {

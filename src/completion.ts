@@ -21,6 +21,32 @@ const ANCHOR_CHARS = 200;
 const REST_OK = /^[\s)\]}>;,'"`]*$/;
 // Python: te nagłówki ciągną blok dalej, a nie zaczynają nowego.
 const CONTINUES = /^(elif|else|except|finally|case)\b/;
+// Komentarz liniowy według języka; domyślnie // razem z blokowym /* */ (C, C++, JS, TS, Java, Go, Rust…).
+const LINE_COMMENT: Record<string, string> = {
+  python: "#",
+  ruby: "#",
+  shellscript: "#",
+  perl: "#",
+  r: "#",
+  yaml: "#",
+  toml: "#",
+  makefile: "#",
+  dockerfile: "#",
+  powershell: "#",
+  coffeescript: "#",
+  elixir: "#",
+  julia: "#",
+  nim: "#",
+  lua: "--",
+  sql: "--",
+  haskell: "--",
+};
+
+// Składnia do liczenia bloków: znacznik komentarza i, w Pythonie, tekst przed kursorem w tej linii (wcięcie).
+interface Syntax {
+  comment: string;
+  head?: string;
+}
 // Kontekst z innych plików (jak w Copilocie): z każdego otwartego pliku w tym samym języku
 // najbardziej podobne okno SNIPPET_LINES linii do QUERY_LINES linii przed kursorem.
 const SNIPPET_LINES = 60;
@@ -112,8 +138,11 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     // Bardzo długie linie (np. pliki zminifikowane) tnie twardy limit, kosztem prompt cache.
     const prefix = doc.getText(new vscode.Range(new vscode.Position(startLine, 0), pos)).slice(-PREFIX_CHARS);
     const suffix = doc.getText(new vscode.Range(pos, doc.positionAt(doc.offsetAt(pos) + SUFFIX_CHARS)));
-    // W Pythonie blok wyznacza wcięcie, więc liczy się też tekst przed kursorem w tej linii.
-    const head = doc.languageId === "python" ? line.text.slice(0, pos.character) : undefined;
+    // Komentarze zależą od języka; w Pythonie blok wyznacza wcięcie, więc liczy się też tekst przed kursorem.
+    const syntax: Syntax = {
+      comment: LINE_COMMENT[doc.languageId] ?? "//",
+      head: doc.languageId === "python" ? line.text.slice(0, pos.character) : undefined,
+    };
     const abort = new AbortController();
     const sub = token.onCancellationRequested(() => abort.abort());
     try {
@@ -131,12 +160,12 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
         maxTokens: MAX_TOKENS,
         temperature: 0.2,
         signal: AbortSignal.any([abort.signal, AbortSignal.timeout(TIMEOUT_MS)]),
-        done: (text) => blockEnd(text, head, false).end !== undefined,
+        done: (text) => blockEnd(text, syntax, false).end !== undefined,
       });
       this.lastError = "";
       // Urwane limitem tokenów: ostatnia linia może być niepełna.
       const raw = res.truncated ? res.text.slice(0, res.text.lastIndexOf("\n") + 1) : res.text;
-      const text = wholeBlocks(trimToSuffix(raw, suffix), head);
+      const text = wholeBlocks(trimToSuffix(raw, suffix), syntax);
       if (!text.trim() || isJunk(text, suffix) || token.isCancellationRequested) {
         return undefined;
       }
@@ -284,11 +313,11 @@ function isJunk(text: string, suffix: string): boolean {
 }
 
 // Podpowiedź kończy się na domkniętym bloku, jak w Copilocie, i nigdy nie zostawia otwartego bloku.
-function wholeBlocks(text: string, head: string | undefined): string {
-  const { end, safe } = blockEnd(text, head, true);
+function wholeBlocks(text: string, syntax: Syntax): string {
+  const { end, safe } = blockEnd(text, syntax, true);
   let out = text.slice(0, end ?? safe).trimEnd();
   // Python: nagłówek bez ciała na końcu (np. „for x in y:”) odpada.
-  while (head !== undefined && out && isHeader(out.slice(out.lastIndexOf("\n") + 1))) {
+  while (syntax.head !== undefined && out && isHeader(out.slice(out.lastIndexOf("\n") + 1))) {
     out = out.slice(0, Math.max(0, out.lastIndexOf("\n"))).trimEnd();
   }
   return out;
@@ -297,9 +326,9 @@ function wholeBlocks(text: string, head: string | undefined): string {
 // end: koniec pierwszego domkniętego bloku (nawiasy, a w Pythonie też wcięcia).
 // safe: koniec ostatniej linii bez otwartych nawiasów.
 // final: tekst jest kompletny; w trakcie strumienia ostatnia linia może być jeszcze niepełna.
-function blockEnd(text: string, head: string | undefined, final: boolean): { end?: number; safe: number } {
-  const scan = scanBlocks(text);
-  const indent = head === undefined ? undefined : indentBlockEnd(text, head, final, scan.balanced);
+function blockEnd(text: string, syntax: Syntax, final: boolean): { end?: number; safe: number } {
+  const scan = scanBlocks(text, syntax.comment);
+  const indent = syntax.head === undefined ? undefined : indentBlockEnd(text, syntax.head, final, scan.balanced);
   const ends = [scan.blockEnd, indent].filter((e): e is number => e !== undefined);
   return { end: ends.length ? Math.min(...ends) : undefined, safe: scan.safeEnd };
 }
@@ -308,7 +337,7 @@ function blockEnd(text: string, head: string | undefined, final: boolean): { end
 // blockEnd: koniec linii, w której zamknął się pierwszy wieloliniowy blok { } albo blok, w którym stoi kursor.
 // safeEnd: koniec ostatniej linii bez otwartych nawiasów; dalej podpowiedź urwałaby blok w połowie.
 // balanced: końce linii (indeksy "\n"), po których nie ma otwartych nawiasów.
-function scanBlocks(text: string): { blockEnd?: number; safeEnd: number; balanced: Set<number> } {
+function scanBlocks(text: string, comment: string): { blockEnd?: number; safeEnd: number; balanced: Set<number> } {
   const stack: number[] = []; // linia, w której otwarto nawias
   const balanced = new Set<number>();
   let line = 0;
@@ -327,13 +356,13 @@ function scanBlocks(text: string): { blockEnd?: number; safeEnd: number; balance
         }
       }
       line++;
-    } else if (text.startsWith("//", i)) {
+    } else if (text.startsWith(comment, i)) {
       const nl = text.indexOf("\n", i);
       if (nl < 0) {
         break;
       }
       i = nl - 1;
-    } else if (text.startsWith("/*", i)) {
+    } else if (comment === "//" && text.startsWith("/*", i)) {
       const end = text.indexOf("*/", i + 2);
       if (end < 0) {
         cutShort = true;
@@ -341,6 +370,15 @@ function scanBlocks(text: string): { blockEnd?: number; safeEnd: number; balance
       }
       line += newlines(text.slice(i, end));
       i = end + 1;
+    } else if (text.startsWith('"""', i) || text.startsWith("'''", i)) {
+      // Potrójne cudzysłowy (Python, Kotlin, Java, C#): napis może mieć wiele linii.
+      const end = text.indexOf(text.slice(i, i + 3), i + 3);
+      if (end < 0) {
+        cutShort = true;
+        break;
+      }
+      line += newlines(text.slice(i, end));
+      i = end + 2;
     } else if (c === '"' || c === "'" || c === "`") {
       // Napis w " i ' kończy się najpóźniej z linią (np. apostrof w tekście); ` może mieć wiele linii.
       let j = i + 1;

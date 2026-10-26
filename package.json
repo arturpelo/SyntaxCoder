@@ -2,7 +2,7 @@
   "name": "syntaxcoder",
   "displayName": "SyntaxCoder",
   "description": "%description%",
-  "version": "0.10.0",
+  "version": "0.20.0",
   "private": true,
   "publisher": "arturpelo",
   "author": {
@@ -194,17 +194,20 @@
         "syntaxcoder.reviewer": {
           "type": "boolean",
           "default": false,
-          "description": "%cfg.reviewer%"
+          "description": "%cfg.reviewer%",
+          "scope": "application"
         },
         "syntaxcoder.planMode": {
           "type": "boolean",
           "default": false,
-          "description": "%cfg.planMode%"
+          "description": "%cfg.planMode%",
+          "scope": "application"
         },
         "syntaxcoder.inlineCompletions": {
           "type": "boolean",
           "default": false,
-          "description": "%cfg.inlineCompletions%"
+          "description": "%cfg.inlineCompletions%",
+          "scope": "application"
         },
         "syntaxcoder.completionModel": {
           "type": "string",

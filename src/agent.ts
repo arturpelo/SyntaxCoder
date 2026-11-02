@@ -192,6 +192,10 @@ async function ask(
   tools: ToolDef[],
   opts: { signal: AbortSignal; host: AgentHost }
 ): Promise<ChatMessage> {
+  // Wskaźnik generowania: start (model przetwarza prompt), tokeny na żywo najwyżej 4 razy na sekundę, koniec.
+  let tokens = 0;
+  let sentAt = 0;
+  opts.host.post({ type: "gen", phase: "prompt" });
   const { message, usage } = await streamChat({
     messages,
     tools,
@@ -204,7 +208,16 @@ async function ask(
         opts.host.post({ type: "reasoningDelta", text: ev.reasoning, who });
       }
     },
+    onToken: () => {
+      tokens++;
+      if (tokens === 1 || Date.now() - sentAt >= 250) {
+        sentAt = Date.now();
+        opts.host.post({ type: "gen", phase: "out", tokens });
+      }
+    },
   });
+  // Na koniec dokładna liczba z serwera (z tokenami myślenia), gdy ją podał.
+  opts.host.post({ type: "gen", phase: "done", tokens: usage?.completion || tokens });
   // Licznik pokazuje kontekst rozmowy; recenzent ma własny, krótki.
   if (usage && who !== "reviewer") {
     opts.host.post({ type: "usage", ...usage });

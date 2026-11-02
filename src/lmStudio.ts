@@ -311,6 +311,8 @@ export async function streamChat(opts: {
   tools: ToolDef[];
   signal: AbortSignal;
   onDelta: (ev: StreamEvent) => void;
+  // Jedno zdarzenie z wygenerowanym tekstem, myśleniem albo argumentami narzędzia: zwykle jeden token.
+  onToken?: () => void;
 }): Promise<{ message: ChatMessage; finishReason: string | null; usage?: Usage }> {
   const cfg = getConfig();
   const model = await resolveModel();
@@ -393,6 +395,9 @@ export async function streamChat(opts: {
         }
         acc.tools.set(idx, prev);
       }
+    }
+    if (delta.content || reasoning || tcs?.length) {
+      opts.onToken?.();
     }
   }
 

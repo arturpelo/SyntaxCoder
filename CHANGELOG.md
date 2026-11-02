@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.0
+
+- Wskaźnik generowania obok nazwy modelu. Gdy model przetwarza prompt (LM Studio nic wtedy nie wysyła), pokazuje czas, np. `prompt 12 s`, odświeżany co sekundę. Potem tokeny i tempo na żywo, np. `523 tok · 52 tok/s`, do 4 razy na sekundę. Liczą się tokeny tekstu, myślenia i argumentów narzędzi, także w rundach recenzenta.
+- Po odpowiedzi wskaźnik pokazuje dokładną liczbę tokenów z serwera, a podpowiedź mówi, po ilu sekundach przyszedł pierwszy token (czas przetwarzania promptu). Stop albo błąd przed pierwszym tokenem chowa wskaźnik. **Nowa rozmowa** go czyści.
+- Ikona rozszerzenia ma zieloną ramkę zamiast niebieskiej.
+
 ## 0.30.0
 
 - Suwak **Myślenie** za nazwą modelu: poziom myślenia modelu. Pozycje suwaka to poziomy, które LM Studio podaje dla wybranego modelu (`capabilities.reasoning` w `/api/v1/models`), np. Qwen3.6 ma wył./wł., a Qwen3.8 wył., niskie, średnie, bardzo wysokie i wł. Zmiana modelu przestawia suwak na poziomy nowego modelu.

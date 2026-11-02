@@ -8,6 +8,7 @@ const modelBtn = $("modelBtn");
 const modelName = $("modelName");
 const dot = $("dot");
 const ctx = $("ctx");
+const gen = $("gen");
 const effort = $("effort");
 const effortRange = $("effortRange");
 const effortName = $("effortName");
@@ -32,6 +33,9 @@ let planCard = null; // jedna karta planu na rozmowę; każda zmiana planu przen
 let ctxUsed = 0; // tokeny ostatniego zapytania rozmowy (prompt + odpowiedź)
 let ctxMax = 0; // kontekst załadowanego modelu; 0 = serwer go nie podaje
 let effortLevels = { options: [], default: "" }; // poziomy myślenia wybranego modelu z LM Studio
+// Bieżące zapytanie do modelu: start, pierwszy token, koniec (ms) i liczba tokenów.
+let genState = { phase: "", t0: 0, t1: 0, end: 0, tokens: 0 };
+let genTimer = null;
 let S = {}; // teksty UI w wybranym języku; przychodzą od hosta ("l10n")
 
 function tr(key, ...args) {
@@ -246,6 +250,53 @@ function renderCtx() {
   ctx.classList.toggle("high", ctxMax > 0 && ctxUsed > ctxMax * 0.75);
 }
 
+const secs = (ms) => (ms < 10000 ? (ms / 1000).toFixed(1) : String(Math.round(ms / 1000)));
+
+// Wskaźnik generowania: najpierw czas przetwarzania promptu (LM Studio wtedy milczy),
+// potem tokeny i tempo na żywo, po odpowiedzi dokładna liczba z serwera.
+function onGen(m) {
+  const now = Date.now();
+  const s = genState;
+  if (m.phase === "prompt") {
+    genState = { phase: "prompt", t0: now, t1: 0, end: 0, tokens: 0 };
+    clearInterval(genTimer);
+    genTimer = setInterval(drawGen, 1000);
+  } else {
+    if (!s.t1) s.t1 = now;
+    s.tokens = m.tokens;
+    s.phase = m.phase;
+    if (m.phase === "done") {
+      s.end = now;
+      stopGen();
+    }
+  }
+  drawGen();
+}
+
+function stopGen() {
+  clearInterval(genTimer);
+  genTimer = null;
+}
+
+function drawGen() {
+  const s = genState;
+  gen.hidden = !s.phase;
+  if (!s.phase) return;
+  const now = Date.now();
+  gen.classList.toggle("live", s.phase !== "done");
+  if (s.phase === "prompt") {
+    gen.textContent = tr("genPrompt", secs(now - s.t0));
+    gen.title = tr("genPromptTitle");
+    return;
+  }
+  // Tempo dopiero po chwili generowania; pierwszy token sam nie mówi nic o szybkości.
+  const dt = (s.end || now) - s.t1;
+  const rate = dt > 300 ? s.tokens / (dt / 1000) : 0;
+  const r = rate ? rate.toFixed(rate < 10 ? 1 : 0) : "…";
+  gen.textContent = tr("genOut", s.tokens.toLocaleString(), r);
+  gen.title = tr("genTitle", s.tokens.toLocaleString(), r, secs(s.t1 - s.t0));
+}
+
 const levelName = (l) => (S["lvl_" + l] ? tr("lvl_" + l) : l);
 
 // Suwak myślenia: pozycje to poziomy wybranego modelu; zapisany poziom spoza listy = domyślny modelu.
@@ -302,7 +353,13 @@ window.addEventListener("message", (ev) => {
       planCard = null;
       ctxUsed = 0;
       renderCtx();
+      stopGen();
+      genState = { phase: "", t0: 0, t1: 0, end: 0, tokens: 0 };
+      drawGen();
       emptyHint();
+      break;
+    case "gen":
+      onGen(m);
       break;
     case "usage":
       ctxUsed = m.prompt + m.completion;
@@ -417,6 +474,13 @@ window.addEventListener("message", (ev) => {
       log.setAttribute("aria-busy", String(busy));
       stop.hidden = !busy;
       send.hidden = busy;
+      // Błąd albo Stop w trakcie zapytania: bez tokenów wskaźnik znika, z tokenami zostaje ich stan.
+      if (!busy && genState.phase && genState.phase !== "done") {
+        stopGen();
+        genState.phase = genState.tokens ? "done" : "";
+        genState.end = Date.now();
+        drawGen();
+      }
       break;
     case "status":
       lastStatus = m;

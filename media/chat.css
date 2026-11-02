@@ -321,6 +321,7 @@ textarea::placeholder { color: var(--vscode-input-placeholderForeground, var(--m
 .effort input { width: 64px; margin: 0; accent-color: var(--accent); }
 .ctx { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ctx.high { color: var(--warn); }
+.ctx.live { color: var(--fg); }
 .switch { flex-shrink: 0; gap: 5px; }
 .switch .track {
   position: relative;

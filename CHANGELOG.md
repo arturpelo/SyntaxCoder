@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.30.0
+
+- Suwak **Myślenie** za nazwą modelu: poziom myślenia modelu. Pozycje suwaka to poziomy, które LM Studio podaje dla wybranego modelu (`capabilities.reasoning` w `/api/v1/models`), np. Qwen3.6 ma wył./wł., a Qwen3.8 wył., niskie, średnie, bardzo wysokie i wł. Zmiana modelu przestawia suwak na poziomy nowego modelu.
+- Model bez poziomów myślenia (np. Qwen3 Coder) i serwer bez `/api/v1` nie mają suwaka i nie dostają parametru.
+- Wybór trafia do modelu jako `reasoning_effort` (wył. = `none`, wł. = domyślne myślenie modelu) i działa od następnego zapytania, także w trakcie zadania. Wartości spoza listy OpenAI nie są wysyłane, więc serwer nie odpowie błędem 400. Podpowiedzi Inline go nie dostają.
+- Nowe ustawienie `syntaxcoder.reasoning`. Poziom, którego wybrany model nie ma, oznacza jego ustawienie domyślne; po powrocie do modelu, który go ma, suwak wraca do tego poziomu.
+- Licznik kontekstu bierze rozmiar kontekstu z `/api/v1/models` (starsze LM Studio: `/api/v0/models`). Dane modelu są pamiętane przez minutę.
+
 ## 0.21.0
 
 - Długie zadania nie kończą się już błędem `terminated`. LM Studio nic nie wysyła, dopóki nie przetworzy całego promptu, a `fetch` w Node zrywał odpowiedź po 5 minutach ciszy. Czat łączy się teraz przez `http`/`https` bez limitu ciszy. Przerwać odpowiedź może tylko **Stop**.

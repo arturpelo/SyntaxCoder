@@ -8,6 +8,9 @@ const modelBtn = $("modelBtn");
 const modelName = $("modelName");
 const dot = $("dot");
 const ctx = $("ctx");
+const effort = $("effort");
+const effortRange = $("effortRange");
+const effortName = $("effortName");
 const switches = document.querySelectorAll("[data-flag]");
 const cfg = $("cfg");
 const hostInput = $("host");
@@ -28,6 +31,7 @@ let lastStatus = null;
 let planCard = null; // jedna karta planu na rozmowę; każda zmiana planu przenosi ją na dół
 let ctxUsed = 0; // tokeny ostatniego zapytania rozmowy (prompt + odpowiedź)
 let ctxMax = 0; // kontekst załadowanego modelu; 0 = serwer go nie podaje
+let effortLevels = { options: [], default: "" }; // poziomy myślenia wybranego modelu z LM Studio
 let S = {}; // teksty UI w wybranym języku; przychodzą od hosta ("l10n")
 
 function tr(key, ...args) {
@@ -242,8 +246,30 @@ function renderCtx() {
   ctx.classList.toggle("high", ctxMax > 0 && ctxUsed > ctxMax * 0.75);
 }
 
+const levelName = (l) => (S["lvl_" + l] ? tr("lvl_" + l) : l);
+
+// Suwak myślenia: pozycje to poziomy wybranego modelu; zapisany poziom spoza listy = domyślny modelu.
+// Model bez poziomów (albo serwer bez API LM Studio) = brak suwaka.
+function renderEffort(m) {
+  const r = m.connected ? m.reasoning : null;
+  effort.hidden = !r;
+  if (!r) return;
+  effortLevels = r;
+  effortRange.max = String(r.options.length - 1);
+  const level = r.options.includes(m.reasoningLevel) ? m.reasoningLevel : r.default;
+  effortRange.value = String(Math.max(0, r.options.indexOf(level)));
+  showEffort();
+}
+
+function showEffort() {
+  const level = effortLevels.options[Number(effortRange.value)];
+  effortName.textContent = levelName(level);
+  effort.title = tr("effortTitle", levelName(level), levelName(effortLevels.default));
+}
+
 function renderStatus(m) {
   connected = m.connected;
+  renderEffort(m);
   dot.className = "dot " + (connected ? "on" : "off");
   delete modelName.dataset.i18n;
   // Serwer odpowiada, ale bez wybranego modelu: pokaż model i pozwól wybrać inny.
@@ -495,6 +521,10 @@ $("cfgClose").onclick = () => toggleCfg(false);
 $("saveCfg").onclick = saveCfg;
 langSelect.onchange = () => (applyLang.disabled = langSelect.value === langSetting);
 applyLang.onclick = () => vscode.postMessage({ type: "setLanguage", value: langSelect.value });
+// Nazwa poziomu zmienia się przy przesuwaniu, zapis dopiero po puszczeniu suwaka.
+effortRange.oninput = showEffort;
+effortRange.onchange = () =>
+  vscode.postMessage({ type: "setReasoning", value: effortLevels.options[Number(effortRange.value)] });
 clearToken.onclick = () => vscode.postMessage({ type: "clearToken" });
 [hostInput, portInput, tokenInput].forEach((i) =>
   i.addEventListener("keydown", (e) => {

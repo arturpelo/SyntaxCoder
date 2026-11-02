@@ -15,6 +15,8 @@ export interface SyntaxCoderConfig {
   autonomousMode: boolean;
   reviewer: boolean;
   planMode: boolean;
+  // Poziom myślenia z suwaka (nazwa z LM Studio, np. off, low, on); pusty = domyślny modelu.
+  reasoning: string;
   inlineCompletions: boolean;
   completionModel: string;
   webTools: boolean;
@@ -71,6 +73,7 @@ export function getConfig(): SyntaxCoderConfig {
     autonomousMode: c.get<boolean>("autonomousMode", false),
     reviewer: c.get<boolean>("reviewer", false),
     planMode: c.get<boolean>("planMode", false),
+    reasoning: c.get<string>("reasoning", "").trim(),
     inlineCompletions: c.get<boolean>("inlineCompletions", false),
     completionModel: c.get<string>("completionModel", "").trim(),
     webTools: c.get<boolean>("webTools", false),

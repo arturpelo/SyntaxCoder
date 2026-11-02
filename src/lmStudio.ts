@@ -143,20 +143,74 @@ export async function checkServer(): Promise<string> {
   return model || models[0];
 }
 
-// Rozmiar kontekstu załadowanego modelu z natywnego API LM Studio (/api/v0); inny serwer = brak danych.
-export async function contextLength(model: string): Promise<number | undefined> {
+export interface ModelInfo {
+  ctxMax?: number;
+  // Poziomy myślenia, które LM Studio podaje dla modelu (np. off, low, xhigh, on); brak = model ich nie ma.
+  reasoning?: { options: string[]; default: string };
+}
+
+interface ApiModel {
+  key: string;
+  variants?: string[];
+  max_context_length?: number;
+  loaded_instances?: { id: string; config?: { context_length?: number } }[];
+  capabilities?: { reasoning?: { allowed_options?: string[]; default?: string } };
+}
+
+// Dane modelu z natywnego API LM Studio: /api/v1 z poziomami myślenia, starsze /api/v0 tylko z kontekstem.
+// Inny serwer = brak danych, więc nie ma suwaka ani parametru. Pamiętane chwilę: czyta je każde zapytanie czatu.
+const INFO_TTL_MS = 60_000;
+let infoCache: { key: string; at: number; info: ModelInfo } | undefined;
+
+export async function modelInfo(model: string): Promise<ModelInfo> {
   const { baseUrl, apiKey } = getConfig();
-  try {
-    const res = await fetch(baseUrl.replace(/\/v1$/, "/api/v0/models"), {
+  const key = `${baseUrl}\u0000${model}`;
+  if (infoCache?.key === key && Date.now() - infoCache.at < INFO_TTL_MS) {
+    return infoCache.info;
+  }
+  // undefined = serwer odpowiedział, ale nie ma tego API (np. 404).
+  const get = async (path: string): Promise<unknown> => {
+    const res = await fetch(baseUrl.replace(/\/v1$/, path), {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(5000),
     });
-    const data = (await res.json()) as { data?: { id: string; loaded_context_length?: number; max_context_length?: number }[] };
-    const m = data.data?.find((d) => d.id === model);
-    return m?.loaded_context_length ?? m?.max_context_length;
+    return res.ok ? res.json() : undefined;
+  };
+  let info: ModelInfo = {};
+  try {
+    const v1 = (await get("/api/v1/models")) as { models?: ApiModel[] } | undefined;
+    if (v1) {
+      const m = v1.models?.find(
+        (d) => d.key === model || d.variants?.includes(model) || d.loaded_instances?.some((i) => i.id === model)
+      );
+      const r = m?.capabilities?.reasoning;
+      info = {
+        ctxMax: (m?.loaded_instances?.find((i) => i.id === model) ?? m?.loaded_instances?.[0])?.config?.context_length ?? m?.max_context_length,
+        reasoning: r?.allowed_options?.length ? { options: r.allowed_options, default: r.default ?? r.allowed_options[0] } : undefined,
+      };
+    } else {
+      const v0 = (await get("/api/v0/models")) as { data?: { id: string; loaded_context_length?: number; max_context_length?: number }[] } | undefined;
+      const d = v0?.data?.find((x) => x.id === model);
+      info = { ctxMax: d?.loaded_context_length ?? d?.max_context_length };
+    }
   } catch {
+    // Błąd sieci albo zła odpowiedź: bez zapamiętania, następne zapytanie spróbuje znowu.
+    return {};
+  }
+  infoCache = { key, at: Date.now(), info };
+  return info;
+}
+
+// Wartości reasoning_effort w API OpenAI; inne serwer odrzuca błędem 400.
+const EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
+
+// Parametr tylko dla poziomu, który model deklaruje. „on” nie ma odpowiednika: zostaje myślenie domyślne modelu.
+export function reasoningEffort(info: ModelInfo, level: string): string | undefined {
+  if (!level || !info.reasoning?.options.includes(level)) {
     return undefined;
   }
+  const effort = level === "off" ? "none" : level;
+  return EFFORTS.has(effort) ? effort : undefined;
 }
 
 // Strumień SSE z LM Studio: każde zdarzenie danych jako obiekt JSON.
@@ -260,6 +314,7 @@ export async function streamChat(opts: {
 }): Promise<{ message: ChatMessage; finishReason: string | null; usage?: Usage }> {
   const cfg = getConfig();
   const model = await resolveModel();
+  const effort = reasoningEffort(await modelInfo(model), cfg.reasoning);
   const res = await postStream(
     `${cfg.baseUrl}/chat/completions`,
     {
@@ -273,6 +328,7 @@ export async function streamChat(opts: {
       ...(opts.tools.length ? { tools: opts.tools } : {}),
       temperature: cfg.temperature,
       max_tokens: cfg.maxTokens,
+      ...(effort ? { reasoning_effort: effort } : {}),
       stream: true,
       // Ostatnie zdarzenie niesie liczbę tokenów (licznik kontekstu w czacie).
       stream_options: { include_usage: true },

@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import * as vscode from "vscode";
 import { approvedPlanPrompt, runAgent, type PlanStep } from "./agent";
-import { checkServer, contextLength, listModels, ModelMissingError, type ChatMessage } from "./lmStudio";
+import { checkServer, listModels, modelInfo, ModelMissingError, type ChatMessage, type ModelInfo } from "./lmStudio";
 import { getConfig, hasApiToken, saveConnection, storeApiToken } from "./config";
 import { ABORTED } from "./agent";
 import { lang, languageSetting, setLanguageOverride, strings, t } from "./i18n";
@@ -95,6 +95,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case "pickModel":
             // Zmiana modelu odświeża status przez onDidChangeConfiguration.
             await pickModel();
+            break;
+          case "setReasoning":
+            // Działa od następnego zapytania do modelu, także w trakcie zadania.
+            await vscode.workspace
+              .getConfiguration("syntaxcoder")
+              .update("reasoning", String(msg.value ?? ""), vscode.ConfigurationTarget.Global);
             break;
           case "setLanguage": {
             // Najpierw UI (działa od razu), potem zapis; nieudany zapis nie blokuje zmiany.
@@ -252,12 +258,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     let connected = false;
     let error = "";
     let reachable = false;
-    let ctxMax: number | undefined;
+    let info: ModelInfo = {};
     this.post({ type: "checking" });
     try {
       model = await checkServer();
       connected = reachable = true;
-      ctxMax = await contextLength(model);
+      info = await modelInfo(model);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       reachable = err instanceof ModelMissingError;
@@ -272,7 +278,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       https: cfg.https,
       baseUrl: cfg.baseUrl,
       error,
-      ctxMax,
+      ctxMax: info.ctxMax,
+      // Suwak myślenia: poziomy wybranego modelu i zapisany wybór (spoza listy = domyślny modelu).
+      reasoning: info.reasoning,
+      reasoningLevel: cfg.reasoning,
       hasToken: hasApiToken(),
       ...flags(),
     });
@@ -339,6 +348,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <button id="modelBtn" class="chip">
           <span id="dot" class="dot off"></span><span id="modelName" ${tx("connecting")}</span>
         </button>
+        <label id="effort" class="effort" hidden>
+          <span ${tx("effort")}</span>
+          <input id="effortRange" type="range" min="0" max="1" step="1" ${attr("aria-label", "effort")} />
+          <span id="effortName"></span>
+        </label>
         <span id="ctx" class="ctx" hidden></span>
         <button id="stop" class="icon-btn stop" hidden ${attr("title", "stop")} ${attr("aria-label", "stop")}>
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>

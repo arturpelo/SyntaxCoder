@@ -24,6 +24,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 
   Najpierw agent dostaje wskazówkę, co dokładnie się powtarza. Potem robi turę namysłu bez narzędzi: mówi, co próbował i co zrobi inaczej. Dopiero gdy i to nie pomoże, kończy pracę własnym podsumowaniem: co zrobione, co nie i co blokuje. Tak samo kończy się praca po wykorzystaniu limitu rund narzędzi.
 - Licznik kontekstu obok nazwy modelu, np. `85.2k / 262k`: ile tokenów zajmuje rozmowa i ile mieści załadowany model. Powyżej 3/4 kontekstu licznik zmienia kolor. Długa rozmowa spowalnia każdą odpowiedź, a **Nowa rozmowa** go zeruje. Długie wyniki narzędzi (np. całe pliki) z poprzednich zadań zostają w historii tylko jako krótka notka, więc kolejne pytania nie wysyłają ich od nowa. Agent przeczyta plik ponownie, gdy go potrzebuje.
+- Suwak **Myślenie** za nazwą modelu: poziom myślenia modelu. Pozycje suwaka to poziomy, które LM Studio podaje dla wybranego modelu (`capabilities.reasoning` w `/api/v1/models`), np. Qwen3.6 ma tylko wył./wł., a Qwen3.8 wył., niskie, średnie, bardzo wysokie i wł. Zmiana modelu przestawia suwak na poziomy nowego modelu. Model bez poziomów (np. Qwen3 Coder) nie ma suwaka i nie dostaje parametru. Wybór trafia do modelu jako `reasoning_effort` (wył. = `none`, wł. = domyślne myślenie modelu) i działa od następnego zapytania, także w trakcie zadania. Mniej myślenia = szybsze odpowiedzi, np. przy szukaniu literówek. Starsze LM Studio bez `/api/v1` nie pokazuje suwaka.
 - Wybór modelu z listy modeli załadowanych w LM Studio.
 - **Dodaj zaznaczenie do czatu** w menu kontekstowym edytora.
 - Interfejs po angielsku, niemiecku, francusku i polsku.
@@ -57,6 +58,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 | `syntaxcoder.autonomousMode` | `false` | Wszystko bez pytania |
 | `syntaxcoder.reviewer` | `false` | Recenzent sprawdza wykonanie zadania |
 | `syntaxcoder.planMode` | `false` | Tryb planu: najpierw plan, zmiany dopiero po **Wykonaj plan** |
+| `syntaxcoder.reasoning` | `""` | Poziom myślenia z suwaka **Myślenie** (np. `off`, `low`, `xhigh`, `on`); pusty albo spoza listy modelu = domyślny modelu |
 | `syntaxcoder.inlineCompletions` | `false` | Inline suggestions: podpowiedzi kodu w edytorze (szary tekst, **Tab** przyjmuje) |
 | `syntaxcoder.completionModel` | puste | Model do podpowiedzi; puste = model czatu |
 | `syntaxcoder.webTools` | `false` | Przełącznik **Web**: narzędzia serwerów MCP dla agenta |

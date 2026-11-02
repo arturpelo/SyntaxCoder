@@ -317,6 +317,8 @@ textarea::placeholder { color: var(--vscode-input-placeholderForeground, var(--m
   font-size: 11px;
 }
 .chip:hover { background: var(--ghost-hover); color: var(--fg); }
+.effort { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.effort input { width: 64px; margin: 0; accent-color: var(--accent); }
 .ctx { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ctx.high { color: var(--warn); }
 .switch { flex-shrink: 0; gap: 5px; }

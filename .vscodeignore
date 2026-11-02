@@ -11,4 +11,5 @@ tsconfig.json
 AGENT.md
 .DS_Store
 PORADNIK-WYDANIE.pdf
+DEPLOY.pdf
 test.*

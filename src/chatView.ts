@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import * as vscode from "vscode";
 import { approvedPlanPrompt, runAgent, type PlanStep } from "./agent";
-import { checkServer, listModels, ModelMissingError, type ChatMessage } from "./lmStudio";
+import { checkServer, contextLength, listModels, ModelMissingError, type ChatMessage } from "./lmStudio";
 import { getConfig, hasApiToken, saveConnection, storeApiToken } from "./config";
 import { ABORTED } from "./agent";
 import { lang, languageSetting, setLanguageOverride, strings, t } from "./i18n";
@@ -252,10 +252,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     let connected = false;
     let error = "";
     let reachable = false;
+    let ctxMax: number | undefined;
     this.post({ type: "checking" });
     try {
       model = await checkServer();
       connected = reachable = true;
+      ctxMax = await contextLength(model);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       reachable = err instanceof ModelMissingError;
@@ -270,6 +272,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       https: cfg.https,
       baseUrl: cfg.baseUrl,
       error,
+      ctxMax,
       hasToken: hasApiToken(),
       ...flags(),
     });
@@ -336,6 +339,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <button id="modelBtn" class="chip">
           <span id="dot" class="dot off"></span><span id="modelName" ${tx("connecting")}</span>
         </button>
+        <span id="ctx" class="ctx" hidden></span>
         <button id="stop" class="icon-btn stop" hidden ${attr("title", "stop")} ${attr("aria-label", "stop")}>
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
         </button>

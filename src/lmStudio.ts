@@ -1,4 +1,6 @@
 import { randomUUID } from "crypto";
+import * as http from "http";
+import * as https from "https";
 import { getConfig } from "./config";
 import { t } from "./i18n";
 
@@ -28,10 +30,22 @@ export interface StreamEvent {
   finishReason?: string | null;
 }
 
+// Tokeny jednego zapytania: prompt = cała wysłana rozmowa, completion = odpowiedź modelu.
+export interface Usage {
+  prompt: number;
+  completion: number;
+}
+
 interface StreamAcc {
   content: string;
   reasoning: string;
   tools: Map<number, { id: string; name: string; arguments: string }>;
+}
+
+// fetch w Node chowa prawdziwy powód (np. certyfikat, ECONNREFUSED, zamknięte gniazdo) w err.cause.
+function reason(err: unknown): string {
+  const cause = (err as { cause?: { message?: string } }).cause?.message;
+  return cause || (err instanceof Error ? err.message : String(err));
 }
 
 // Jedno miejsce na błędy sieci i autoryzacji: proxy, certyfikaty, zły token.
@@ -43,14 +57,36 @@ async function request(url: string, init: RequestInit): Promise<Response> {
     if (init.signal?.aborted && !(err instanceof Error && err.name === "TimeoutError")) {
       throw err;
     }
-    // fetch w Node chowa prawdziwy powód (np. certyfikat, ECONNREFUSED) w err.cause.
-    const cause = (err as { cause?: { message?: string } }).cause?.message;
-    throw new Error(t("netError", url, cause || (err instanceof Error ? err.message : String(err))));
+    throw new Error(t("netError", url, reason(err)));
   }
   if (res.status === 401 || res.status === 403) {
     throw new Error(t("authFailed", res.status));
   }
   return res;
+}
+
+// POST ze strumieniem przez http/https, nie fetch: fetch w Node zrywa odpowiedź po 5 minutach bez danych
+// („terminated”), a LM Studio nic nie wysyła, dopóki nie przetworzy całego promptu. Przy długiej rozmowie
+// trwa to dłużej, więc limitu ciszy tu nie ma; przerwać może tylko Stop.
+function postStream(url: string, headers: Record<string, string>, body: string, signal: AbortSignal): Promise<http.IncomingMessage> {
+  return new Promise((resolve, reject) => {
+    const req = (url.startsWith("https:") ? https : http).request(
+      url,
+      { method: "POST", headers: { ...headers, "Content-Length": Buffer.byteLength(body) }, signal },
+      resolve
+    );
+    req.on("error", (err) => reject(signal.aborted ? err : new Error(t("netError", url, reason(err)))));
+    req.end(body);
+  });
+}
+
+async function readText(stream: AsyncIterable<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder();
+  let text = "";
+  for await (const chunk of stream) {
+    text += decoder.decode(chunk, { stream: true });
+  }
+  return text + decoder.decode();
 }
 
 export async function listModels(): Promise<string[]> {
@@ -107,46 +143,64 @@ export async function checkServer(): Promise<string> {
   return model || models[0];
 }
 
-// Strumień SSE z LM Studio: pierwszy wybór (choices[0]) z każdego zdarzenia danych.
-async function* sseChoices(body: ReadableStream<Uint8Array>): AsyncGenerator<Record<string, unknown>> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
+// Rozmiar kontekstu załadowanego modelu z natywnego API LM Studio (/api/v0); inny serwer = brak danych.
+export async function contextLength(model: string): Promise<number | undefined> {
+  const { baseUrl, apiKey } = getConfig();
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        return;
-      }
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split(/\r?\n/);
-      buf = lines.pop() ?? "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) {
-          continue;
-        }
-        const payload = trimmed.slice(5).trim();
-        if (!payload || payload === "[DONE]") {
-          continue;
-        }
-        let json: Record<string, unknown>;
-        try {
-          json = JSON.parse(payload) as Record<string, unknown>;
-        } catch {
-          continue;
-        }
-        const choice = (json.choices as Record<string, unknown>[] | undefined)?.[0];
-        if (choice) {
-          yield choice;
-        }
-      }
-    }
-  } finally {
-    // break u wywołującego zamyka połączenie, więc serwer przestaje generować.
-    await reader.cancel().catch(() => undefined);
+    const res = await fetch(baseUrl.replace(/\/v1$/, "/api/v0/models"), {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    const data = (await res.json()) as { data?: { id: string; loaded_context_length?: number; max_context_length?: number }[] };
+    const m = data.data?.find((d) => d.id === model);
+    return m?.loaded_context_length ?? m?.max_context_length;
+  } catch {
+    return undefined;
   }
 }
+
+// Strumień SSE z LM Studio: każde zdarzenie danych jako obiekt JSON.
+// break u wywołującego zamyka strumień, a z nim połączenie, więc serwer przestaje generować.
+async function* sseEvents(body: AsyncIterable<Uint8Array>, signal: AbortSignal): AsyncGenerator<Record<string, unknown>> {
+  try {
+    yield* parseSse(body);
+  } catch (err) {
+    if (signal.aborted) {
+      throw err;
+    }
+    // Zerwanie w połowie odpowiedzi z powodem zamiast samego „terminated”.
+    throw new Error(t("streamBroken", reason(err)));
+  }
+}
+
+async function* parseSse(body: AsyncIterable<Uint8Array>): AsyncGenerator<Record<string, unknown>> {
+  const decoder = new TextDecoder();
+  let buf = "";
+  for await (const chunk of body) {
+    buf += decoder.decode(chunk, { stream: true });
+    const lines = buf.split(/\r?\n/);
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) {
+        continue;
+      }
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") {
+        continue;
+      }
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(payload) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      yield json;
+    }
+  }
+}
+
+const firstChoice = (ev: Record<string, unknown>) => (ev.choices as Record<string, unknown>[] | undefined)?.[0];
 
 // Surowe dokończenie tekstu (/v1/completions), bez szablonu czatu; dla podpowiedzi w edytorze.
 // Strumień kończy się wcześniej, gdy done(tekst) zwróci true. truncated: model doszedł do limitu tokenów.
@@ -182,7 +236,11 @@ export async function complete(opts: {
   }
   let text = "";
   let truncated = false;
-  for await (const choice of sseChoices(res.body)) {
+  for await (const ev of sseEvents(res.body, opts.signal)) {
+    const choice = firstChoice(ev);
+    if (!choice) {
+      continue;
+    }
     if (typeof choice.text === "string") {
       text += choice.text;
     }
@@ -199,16 +257,16 @@ export async function streamChat(opts: {
   tools: ToolDef[];
   signal: AbortSignal;
   onDelta: (ev: StreamEvent) => void;
-}): Promise<{ message: ChatMessage; finishReason: string | null }> {
+}): Promise<{ message: ChatMessage; finishReason: string | null; usage?: Usage }> {
   const cfg = getConfig();
   const model = await resolveModel();
-  const res = await request(`${cfg.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
+  const res = await postStream(
+    `${cfg.baseUrl}/chat/completions`,
+    {
       "Content-Type": "application/json",
       Authorization: `Bearer ${cfg.apiKey}`,
     },
-    body: JSON.stringify({
+    JSON.stringify({
       model,
       messages: opts.messages,
       // Tura bez narzędzi (np. namysł agenta): pusta lista potrafi zmylić serwer, więc jej nie wysyłamy.
@@ -216,19 +274,35 @@ export async function streamChat(opts: {
       temperature: cfg.temperature,
       max_tokens: cfg.maxTokens,
       stream: true,
+      // Ostatnie zdarzenie niesie liczbę tokenów (licznik kontekstu w czacie).
+      stream_options: { include_usage: true },
     }),
-    signal: opts.signal,
-  });
+    opts.signal
+  );
 
-  if (!res.ok || !res.body) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`LM Studio ${res.status}: ${text || res.statusText}`);
+  const status = res.statusCode ?? 0;
+  if (status === 401 || status === 403) {
+    res.resume();
+    throw new Error(t("authFailed", status));
+  }
+  if (status < 200 || status >= 300) {
+    const text = await readText(res).catch(() => "");
+    throw new Error(`LM Studio ${status}: ${text || res.statusMessage}`);
   }
 
   const acc: StreamAcc = { content: "", reasoning: "", tools: new Map() };
   let finishReason: string | null = null;
+  let usage: Usage | undefined;
 
-  for await (const choice of sseChoices(res.body)) {
+  for await (const ev of sseEvents(res, opts.signal)) {
+    const u = ev.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
+    if (typeof u?.prompt_tokens === "number") {
+      usage = { prompt: u.prompt_tokens, completion: u.completion_tokens ?? 0 };
+    }
+    const choice = firstChoice(ev);
+    if (!choice) {
+      continue;
+    }
     if (typeof choice.finish_reason === "string") {
       finishReason = choice.finish_reason;
     }
@@ -281,5 +355,5 @@ export async function streamChat(opts: {
     ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
   };
 
-  return { message, finishReason };
+  return { message, finishReason, usage };
 }

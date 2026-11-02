@@ -7,6 +7,7 @@ const stop = $("stop");
 const modelBtn = $("modelBtn");
 const modelName = $("modelName");
 const dot = $("dot");
+const ctx = $("ctx");
 const switches = document.querySelectorAll("[data-flag]");
 const cfg = $("cfg");
 const hostInput = $("host");
@@ -25,6 +26,8 @@ let currentAssistant = null;
 let currentReason = null;
 let lastStatus = null;
 let planCard = null; // jedna karta planu na rozmowę; każda zmiana planu przenosi ją na dół
+let ctxUsed = 0; // tokeny ostatniego zapytania rozmowy (prompt + odpowiedź)
+let ctxMax = 0; // kontekst załadowanego modelu; 0 = serwer go nie podaje
 let S = {}; // teksty UI w wybranym języku; przychodzą od hosta ("l10n")
 
 function tr(key, ...args) {
@@ -69,16 +72,38 @@ function inline(s) {
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 }
 
+const TABLE_SEP = /^[\s|:-]+$/;
+
+// Wiersze tabeli markdown; druga linia z samych kresek oddziela nagłówek.
+function table(rows) {
+  const head = rows.length > 1 && TABLE_SEP.test(rows[1]);
+  const row = (r, tag) =>
+    `<tr>${r.trim().replace(/^\||\|$/g, "").split("|").map((c) => `<${tag}>${inline(c.trim())}</${tag}>`).join("")}</tr>`;
+  const body = rows.slice(head ? 2 : 0).filter((r) => !TABLE_SEP.test(r));
+  return `<div class="table"><table>${head ? `<thead>${row(rows[0], "th")}</thead>` : ""}<tbody>${body
+    .map((r) => row(r, "td"))
+    .join("")}</tbody></table></div>`;
+}
+
 function blocks(text) {
   const out = [];
   let list = null;
+  let rows = [];
   const close = () => {
     if (list) out.push(`</${list}>`);
     list = null;
+    if (rows.length) out.push(table(rows));
+    rows = [];
   };
   for (const line of text.split("\n")) {
     let m;
-    if ((m = line.match(/^(#{1,3})\s+(.*)$/))) {
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      if (list) {
+        out.push(`</${list}>`);
+        list = null;
+      }
+      rows.push(line);
+    } else if ((m = line.match(/^(#{1,3})\s+(.*)$/))) {
       close();
       const h = m[1].length + 2;
       out.push(`<h${h}>${inline(m[2])}</h${h}>`);
@@ -206,6 +231,17 @@ function renderPlan(steps) {
   </div>`);
 }
 
+const kTok = (n) => (n < 1000 ? String(n) : `${(n / 1000).toFixed(n < 10000 ? 1 : 0)}k`);
+
+// Licznik kontekstu przy modelu; powyżej 3/4 kontekstu ostrzega kolorem.
+function renderCtx() {
+  ctx.hidden = !ctxUsed;
+  if (!ctxUsed) return;
+  ctx.textContent = ctxMax ? `${kTok(ctxUsed)} / ${kTok(ctxMax)}` : kTok(ctxUsed);
+  ctx.title = tr("ctxTitle", ctxUsed.toLocaleString(), ctxMax ? ctxMax.toLocaleString() : "?");
+  ctx.classList.toggle("high", ctxMax > 0 && ctxUsed > ctxMax * 0.75);
+}
+
 function renderStatus(m) {
   connected = m.connected;
   dot.className = "dot " + (connected ? "on" : "off");
@@ -232,12 +268,19 @@ window.addEventListener("message", (ev) => {
       applyL10n();
       if (!log.children.length || log.querySelector(".empty")) emptyHint();
       if (lastStatus) renderStatus(lastStatus);
+      renderCtx();
       break;
     case "cleared":
       currentAssistant = null;
       currentReason = null;
       planCard = null;
+      ctxUsed = 0;
+      renderCtx();
       emptyHint();
+      break;
+    case "usage":
+      ctxUsed = m.prompt + m.completion;
+      renderCtx();
       break;
     case "user":
       currentAssistant = null;
@@ -352,6 +395,8 @@ window.addEventListener("message", (ev) => {
     case "status":
       lastStatus = m;
       renderStatus(m);
+      ctxMax = m.ctxMax || 0;
+      renderCtx();
       if (m.host && document.activeElement !== hostInput) hostInput.value = m.host;
       if (m.port && document.activeElement !== portInput) portInput.value = m.port;
       httpsInput.checked = Boolean(m.https);

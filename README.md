@@ -23,6 +23,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
   - edycje, które cofają plik do stanu, w którym już był.
 
   Najpierw agent dostaje wskazówkę, co dokładnie się powtarza. Potem robi turę namysłu bez narzędzi: mówi, co próbował i co zrobi inaczej. Dopiero gdy i to nie pomoże, kończy pracę własnym podsumowaniem: co zrobione, co nie i co blokuje. Tak samo kończy się praca po wykorzystaniu limitu rund narzędzi.
+- Licznik kontekstu obok nazwy modelu, np. `85.2k / 262k`: ile tokenów zajmuje rozmowa i ile mieści załadowany model. Powyżej 3/4 kontekstu licznik zmienia kolor. Długa rozmowa spowalnia każdą odpowiedź, a **Nowa rozmowa** go zeruje. Długie wyniki narzędzi (np. całe pliki) z poprzednich zadań zostają w historii tylko jako krótka notka, więc kolejne pytania nie wysyłają ich od nowa. Agent przeczyta plik ponownie, gdy go potrzebuje.
 - Wybór modelu z listy modeli załadowanych w LM Studio.
 - **Dodaj zaznaczenie do czatu** w menu kontekstowym edytora.
 - Interfejs po angielsku, niemiecku, francusku i polsku.

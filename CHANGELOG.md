@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.0
+
+- Długie zadania nie kończą się już błędem `terminated`. LM Studio nic nie wysyła, dopóki nie przetworzy całego promptu, a `fetch` w Node zrywał odpowiedź po 5 minutach ciszy. Czat łączy się teraz przez `http`/`https` bez limitu ciszy. Przerwać odpowiedź może tylko **Stop**.
+- Zerwana w połowie odpowiedź ma czytelny komunikat z powodem, np. „Serwer przerwał odpowiedź (aborted). Sprawdź log LM Studio…”, zamiast samego `terminated`.
+- Długie wyniki narzędzi (ponad 2000 znaków, np. całe pliki) z poprzednich zadań zostają w historii tylko jako krótka notka. Wcześniej każde kolejne pytanie wysyłało je od nowa, a LM Studio przetwarzało taki prompt minutami. Agent przeczyta plik ponownie, gdy go potrzebuje.
+- Licznik kontekstu obok nazwy modelu, np. `85.2k / 262k`: tokeny ostatniego zapytania rozmowy (`usage` z LM Studio) i rozmiar kontekstu załadowanego modelu (`/api/v0/models`). Powyżej 3/4 kontekstu licznik zmienia kolor. **Nowa rozmowa** go zeruje.
+- Tabele markdown w odpowiedziach wyświetlają się jako tabele, a nie surowe znaki `|`. Szeroka tabela przewija się w bok.
+
 ## 0.20.0
 
 Poprawki z przeglądu kodu (code review) wydań 0.9.0–0.10.0:

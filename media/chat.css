@@ -164,6 +164,11 @@ pre {
   line-height: 1.45;
 }
 pre code { background: none; padding: 0; font-size: inherit; }
+/* Szeroka tabela przewija się w bok zamiast rozpychać wąski panel. */
+.table { overflow-x: auto; margin: 6px 0; }
+.table table { border-collapse: collapse; font-size: 12px; }
+.table th, .table td { padding: 3px 8px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.table th { background: var(--card); }
 .code { position: relative; }
 .code .lang { position: absolute; top: 4px; left: 10px; font-size: 10px; color: var(--muted); font-family: var(--font); }
 .code .lang + pre { padding-top: 20px; }
@@ -312,6 +317,8 @@ textarea::placeholder { color: var(--vscode-input-placeholderForeground, var(--m
   font-size: 11px;
 }
 .chip:hover { background: var(--ghost-hover); color: var(--fg); }
+.ctx { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ctx.high { color: var(--warn); }
 .switch { flex-shrink: 0; gap: 5px; }
 .switch .track {
   position: relative;

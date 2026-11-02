@@ -44,6 +44,10 @@ const NO_CHANGE_NUDGE =
 const PLAN_NUDGE =
   "You did not save a plan. If the request needs changes, save the plan with update_plan now. " +
   "If it is only a question, do not call tools and say in one sentence that no plan is needed.";
+// Długie wyniki narzędzi z poprzednich zadań (np. całe pliki) zostają w historii tylko jako ta notka:
+// inaczej każde kolejne pytanie wysyła je od nowa, a LM Studio przetwarza taki prompt minutami.
+const OLD_RESULT_MAX = 2000;
+const OLD_RESULT = "[Output of an earlier tool call removed to keep the context small. Call the tool again if you need it.]";
 const READ_TOOLS = TOOL_DEFS.filter((t) => needsApproval(t.function.name) === null);
 // Recenzent tylko czyta: bez zapisu, komend i otwierania edytora.
 const REVIEW_TOOLS = READ_TOOLS.filter((t) => t.function.name !== "open_file");
@@ -188,7 +192,7 @@ async function ask(
   tools: ToolDef[],
   opts: { signal: AbortSignal; host: AgentHost }
 ): Promise<ChatMessage> {
-  const { message } = await streamChat({
+  const { message, usage } = await streamChat({
     messages,
     tools,
     signal: opts.signal,
@@ -201,6 +205,10 @@ async function ask(
       }
     },
   });
+  // Licznik pokazuje kontekst rozmowy; recenzent ma własny, krótki.
+  if (usage && who !== "reviewer") {
+    opts.host.post({ type: "usage", ...usage });
+  }
   return message;
 }
 
@@ -495,7 +503,9 @@ export async function runAgent(opts: {
   const ctx = { signal: opts.signal, host: opts.host, web };
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt(opts.planMode, web.length > 0) },
-    ...opts.history,
+    ...opts.history.map((m) =>
+      m.role === "tool" && m.content.length > OLD_RESULT_MAX ? { ...m, content: OLD_RESULT } : m
+    ),
     { role: "user", content: opts.userText },
   ];
 

@@ -185,12 +185,17 @@ export const TOOL_DEFS: ToolDef[] = [
     function: {
       name: "run_command",
       description:
-        "Run a shell command in the workspace (build, tests, scripts). Output is captured and also shown in the SyntaxCoder output panel.",
+        "Run a shell command on the user's computer, starting in the workspace (build, tests, running programs, installing tools). " +
+        "There is no keyboard input. Output is captured and also shown in the SyntaxCoder output panel.",
       parameters: {
         type: "object",
         properties: {
           command: { type: "string" },
           cwd: { type: "string", description: "Working directory relative to workspace" },
+          timeout_s: {
+            type: "integer",
+            description: "Time limit in seconds for long commands such as installs or big builds (max 1800)",
+          },
         },
         required: ["command"],
       },
@@ -279,7 +284,7 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<str
     case "grep":
       return await grep(str(args.pattern), str(args.path) || ".", str(args.glob));
     case "run_command":
-      return await runCommand(str(args.command), str(args.cwd) || ".");
+      return await runCommand(str(args.command), str(args.cwd) || ".", Number(args.timeout_s) || 0);
     case "open_file":
       return await openFile(str(args.path));
     default:
@@ -670,7 +675,7 @@ function ensureOutput(): vscode.OutputChannel {
   return output;
 }
 
-async function runCommand(command: string, cwdRel: string): Promise<string> {
+async function runCommand(command: string, cwdRel: string, timeoutS: number): Promise<string> {
   if (!command.trim()) {
     throw new Error("Empty command");
   }
@@ -679,12 +684,16 @@ async function runCommand(command: string, cwdRel: string): Promise<string> {
   log.show(true);
   log.appendLine(`$ ${command}`);
 
-  const timeout = getConfig().commandTimeoutMs;
+  // Model może tylko wydłużyć limit z ustawień (instalacje, duże kompilacje), najwyżej do 30 minut.
+  const timeout = Math.max(getConfig().commandTimeoutMs, Math.min(1800, timeoutS) * 1000);
   return await new Promise((resolve, reject) => {
     const child = spawn(command, {
       cwd,
       shell: true,
       windowsHide: true,
+      // Bez wejścia z klawiatury: program, który o nie pyta (np. zgoda na licencję), dostaje od razu koniec
+      // wejścia i kończy się błędem do poprawienia, zamiast wisieć do limitu czasu.
+      stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
     let err = "";

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.33.0
+
+- Agent instaluje programy i uruchamia komendy, zamiast odmawiać. Prompt mówił modelowi „Do not leave the workspace”, a opis `run_command` brzmiał „in the workspace”, więc model (np. Qwen3.6) odpowiadał „nie mam uprawnień do instalacji ani do terminala”, nie próbując nawet żadnej komendy. Teraz wie, że `run_command` uruchamia prawdziwe komendy na komputerze użytkownika (z nazwą systemu i powłoki, np. `Windows, cmd.exe`), także instalacje (`winget`, `npm`, `pip`), i że ma spróbować i zgłosić prawdziwy błąd. Do folderu projektu ograniczone są tylko narzędzia plikowe.
+- Komendy nie dostają wejścia z klawiatury. Program, który o nie pyta (np. `winget` o zgodę na licencję albo `set /p`), od razu dostaje koniec wejścia i kończy się błędem do poprawienia, zamiast wisieć do limitu czasu. Model dostaje wskazówkę o flagach `--accept-source-agreements --accept-package-agreements`.
+- `run_command` ma parametr `timeout_s`: model może wydłużyć limit z `syntaxcoder.commandTimeoutMs` dla instalacji i dużych kompilacji, najwyżej do 30 minut. Skrócić go nie może.
+
 ## 0.32.0
 
 - `edit_file` działa w plikach z końcami linii Windows (CRLF). Model pisze `old_string` z samym `\n`, więc każda wielolinijkowa zmiana w takim pliku kończyła się „old_string not found”, a agent ponawiał próby, aż wyczerpał rundy. Teraz w pliku z samymi końcami CRLF dopasowanie idzie na wersji z `\n`, a zapis wraca do CRLF. Plik z mieszanymi końcami linii jest dopasowywany dosłownie, jak dotąd.

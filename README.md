@@ -9,6 +9,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 - Czat w panelu bocznym (ikona **SxC** na pasku aktywności) ze streamingiem odpowiedzi i podglądem „myślenia” modelu.
 - Narzędzia agenta: `read_file`, `write_file`, `edit_file`, `create_dir`, `move_path`, `delete_path`, `list_dir`, `glob`, `grep`, `get_diagnostics`, `run_command`, `open_file`, `update_plan`.
 - Plan zadania: przy zadaniach z kilkoma krokami agent prowadzi plan (`update_plan`), widoczny w czacie jako lista kroków ze stanem (○ do zrobienia, ▸ w toku, ✓ zrobione).
+- `run_command` uruchamia prawdziwe komendy na Twoim komputerze (na Windows w `cmd.exe`), z Twoimi uprawnieniami: kompilację, testy, uruchamianie programów, a także instalację brakujących programów i pakietów (np. `winget`, `npm`, `pip`). Narzędzia plikowe działają tylko w folderze projektu. Komendy nie dostają wejścia z klawiatury: program, który o nie pyta, od razu dostaje koniec wejścia zamiast wisieć do limitu czasu. Przy długich komendach (instalacje, duże kompilacje) agent może wydłużyć limit `syntaxcoder.commandTimeoutMs`, najwyżej do 30 minut. Instalacja dla całego komputera może wywołać okno Windows z prośbą o uprawnienia administratora (UAC), które potwierdzasz sam.
 - Zgoda na każdy zapis pliku i każdą komendę (przyciski **Zezwól / Odrzuć**). Można to wyłączyć w ustawieniach.
 - Przełącznik **Auto** przy polu wiadomości włącza tryb autonomiczny (po potwierdzeniu).
 - Przełącznik **Recenzent**: gdy agent zmieni pliki, drugi przebieg modelu (tylko z narzędziami do odczytu) sprawdza w plikach, czy polecenie zostało wykonane. Braki wracają do agenta, maksymalnie 4 rundy poprawek.
@@ -65,7 +66,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 | `syntaxcoder.webTools` | `false` | Przełącznik **Web**: narzędzia serwerów MCP dla agenta |
 | `syntaxcoder.mcpServers` | context7, grep, deepwiki | Serwery MCP po HTTP: `"nazwa": { "type": "http", "url": "https://…" }` |
 | `syntaxcoder.language` | `auto` | Język interfejsu: `auto` (jak VS Code), `en`, `de`, `fr`, `pl` |
-| `syntaxcoder.commandTimeoutMs` | `60000` | Limit czasu jednej komendy (ms) |
+| `syntaxcoder.commandTimeoutMs` | `60000` | Limit czasu jednej komendy (ms); agent może go wydłużyć dla instalacji i dużych kompilacji, najwyżej do 30 minut |
 | `syntaxcoder.maxTurns` | `100` | Rundy narzędzi na zadanie (5–1000); po ich wyczerpaniu agent kończy pracę podsumowaniem |
 
 ## Bezpieczeństwo

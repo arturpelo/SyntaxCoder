@@ -33,8 +33,8 @@ let planCard = null; // jedna karta planu na rozmowę; każda zmiana planu przen
 let ctxUsed = 0; // tokeny ostatniego zapytania rozmowy (prompt + odpowiedź)
 let ctxMax = 0; // kontekst załadowanego modelu; 0 = serwer go nie podaje
 let effortLevels = { options: [], default: "" }; // poziomy myślenia wybranego modelu z LM Studio
-// Bieżące zapytanie do modelu: start, pierwszy token, koniec (ms) i liczba tokenów.
-let genState = { phase: "", t0: 0, t1: 0, end: 0, tokens: 0 };
+// Ostatni stan wskaźnika generowania od hosta (wait, out, tool, done) i początek bieżącej fazy.
+let genState = { phase: "" };
 let genTimer = null;
 let S = {}; // teksty UI w wybranym języku; przychodzą od hosta ("l10n")
 
@@ -252,24 +252,13 @@ function renderCtx() {
 
 const secs = (ms) => (ms < 10000 ? (ms / 1000).toFixed(1) : String(Math.round(ms / 1000)));
 
-// Wskaźnik generowania: najpierw czas przetwarzania promptu (LM Studio wtedy milczy),
-// potem tokeny i tempo na żywo, po odpowiedzi dokładna liczba z serwera.
+// Wskaźnik generowania. Liczby (tokeny, tempo, czasy) liczy host; tu tylko czas trwania faz bez danych:
+// wait = LM Studio jeszcze nic nie wysłało, tool = model pisze argumenty narzędzia, które przyjdą w całości.
 function onGen(m) {
-  const now = Date.now();
-  const s = genState;
-  if (m.phase === "prompt") {
-    genState = { phase: "prompt", t0: now, t1: 0, end: 0, tokens: 0 };
-    clearInterval(genTimer);
-    genTimer = setInterval(drawGen, 1000);
-  } else {
-    if (!s.t1) s.t1 = now;
-    s.tokens = m.tokens;
-    s.phase = m.phase;
-    if (m.phase === "done") {
-      s.end = now;
-      stopGen();
-    }
-  }
+  const same = m.phase === genState.phase && m.tool === genState.tool;
+  genState = { ...m, since: same ? genState.since : Date.now() };
+  stopGen();
+  if (m.phase === "wait" || m.phase === "tool") genTimer = setInterval(drawGen, 1000);
   drawGen();
 }
 
@@ -282,19 +271,24 @@ function drawGen() {
   const s = genState;
   gen.hidden = !s.phase;
   if (!s.phase) return;
-  const now = Date.now();
   gen.classList.toggle("live", s.phase !== "done");
-  if (s.phase === "prompt") {
-    gen.textContent = tr("genPrompt", secs(now - s.t0));
-    gen.title = tr("genPromptTitle");
-    return;
+  const n = (s.tokens ?? 0).toLocaleString();
+  const r = s.rate ? s.rate.toFixed(s.rate < 10 ? 1 : 0) : "";
+  const t = secs(Date.now() - s.since);
+  if (s.phase === "wait") {
+    gen.textContent = tr("genWait", t);
+    gen.title = tr("genWaitTitle");
+  } else if (s.phase === "tool") {
+    gen.textContent = tr("genTool", s.tool, t);
+    gen.title = tr("genToolTitle", s.tool);
+  } else if (s.phase === "out") {
+    gen.textContent = r ? tr("genOut", n, r) : tr("genTok", n);
+    gen.title = tr("genLiveTitle");
+  } else {
+    gen.textContent = r ? tr("genOut", n, r) : tr("genDone", n, secs(s.ms));
+    gen.title =
+      tr("genTitle", n, secs(s.ms), s.firstMs == null ? "—" : secs(s.firstMs)) + (r ? " " + tr("genRateTitle", r) : "");
   }
-  // Tempo dopiero po chwili generowania; pierwszy token sam nie mówi nic o szybkości.
-  const dt = (s.end || now) - s.t1;
-  const rate = dt > 300 ? s.tokens / (dt / 1000) : 0;
-  const r = rate ? rate.toFixed(rate < 10 ? 1 : 0) : "…";
-  gen.textContent = tr("genOut", s.tokens.toLocaleString(), r);
-  gen.title = tr("genTitle", s.tokens.toLocaleString(), r, secs(s.t1 - s.t0));
 }
 
 const levelName = (l) => (S["lvl_" + l] ? tr("lvl_" + l) : l);
@@ -354,7 +348,7 @@ window.addEventListener("message", (ev) => {
       ctxUsed = 0;
       renderCtx();
       stopGen();
-      genState = { phase: "", t0: 0, t1: 0, end: 0, tokens: 0 };
+      genState = { phase: "" };
       drawGen();
       emptyHint();
       break;
@@ -474,11 +468,10 @@ window.addEventListener("message", (ev) => {
       log.setAttribute("aria-busy", String(busy));
       stop.hidden = !busy;
       send.hidden = busy;
-      // Błąd albo Stop w trakcie zapytania: bez tokenów wskaźnik znika, z tokenami zostaje ich stan.
+      // Błąd albo Stop w trakcie zapytania: bez dokładnych danych z serwera wskaźnik znika.
       if (!busy && genState.phase && genState.phase !== "done") {
         stopGen();
-        genState.phase = genState.tokens ? "done" : "";
-        genState.end = Date.now();
+        genState = { phase: "" };
         drawGen();
       }
       break;

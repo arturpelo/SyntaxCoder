@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.31.1
+
+- Wskaźnik generowania pokazuje prawdziwe liczby. Wcześniej liczył zdarzenia ze strumienia, a LM Studio wysyła argumenty narzędzia jednym kawałkiem na końcu: tura z 38 tokenami pokazywała „2 tok”, a tempo z dwóch zdarzeń wychodziło zawyżone.
+- Dopóki LM Studio nic nie wysyła (przetwarza prompt albo pisze wywołanie narzędzia), wskaźnik pokazuje `czeka 4.1 s` zamiast „prompt”, który obejmował też ciche pisanie wywołania.
+- Gdy model pisze argumenty narzędzia, wskaźnik pokazuje nazwę narzędzia i czas, np. `write_file 12 s`, bez udawanego licznika.
+- Tempo jest liczone tylko z tokenów przesłanych na bieżąco i tylko przy co najmniej 20 tokenach. Po odpowiedzi liczba tokenów zawsze pochodzi z LM Studio; bez tempa wskaźnik pokazuje całkowity czas zapytania, np. `26 tok · 4.4 s`. Stop albo błąd chowa wskaźnik.
+- Wskaźnik stoi za licznikiem kontekstu: najpierw kontekst, potem tokeny.
+
 ## 0.31.0
 
 - Wskaźnik generowania obok nazwy modelu. Gdy model przetwarza prompt (LM Studio nic wtedy nie wysyła), pokazuje czas, np. `prompt 12 s`, odświeżany co sekundę. Potem tokeny i tempo na żywo, np. `523 tok · 52 tok/s`, do 4 razy na sekundę. Liczą się tokeny tekstu, myślenia i argumentów narzędzi, także w rundach recenzenta.

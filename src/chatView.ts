@@ -353,8 +353,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           <input id="effortRange" type="range" min="0" max="1" step="1" ${attr("aria-label", "effort")} />
           <span id="effortName"></span>
         </label>
-        <span id="gen" class="ctx" hidden></span>
         <span id="ctx" class="ctx" hidden></span>
+        <span id="gen" class="ctx" hidden></span>
         <button id="stop" class="icon-btn stop" hidden ${attr("title", "stop")} ${attr("aria-label", "stop")}>
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
         </button>

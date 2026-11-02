@@ -311,8 +311,10 @@ export async function streamChat(opts: {
   tools: ToolDef[];
   signal: AbortSignal;
   onDelta: (ev: StreamEvent) => void;
-  // Jedno zdarzenie z wygenerowanym tekstem, myśleniem albo argumentami narzędzia: zwykle jeden token.
-  onToken?: () => void;
+  // Bez argumentu: tekst albo myślenie, zwykle jeden token na zdarzenie.
+  // Z argumentem: wywołanie narzędzia, nazwa w pierwszym zdarzeniu, "" przy argumentach,
+  // które LM Studio wysyła w całości dopiero po ich wygenerowaniu.
+  onToken?: (tool?: string) => void;
 }): Promise<{ message: ChatMessage; finishReason: string | null; usage?: Usage }> {
   const cfg = getConfig();
   const model = await resolveModel();
@@ -396,8 +398,11 @@ export async function streamChat(opts: {
         acc.tools.set(idx, prev);
       }
     }
-    if (delta.content || reasoning || tcs?.length) {
+    if (delta.content || reasoning) {
       opts.onToken?.();
+    }
+    if (tcs?.length) {
+      opts.onToken?.(tcs[0].function?.name ?? "");
     }
   }
 

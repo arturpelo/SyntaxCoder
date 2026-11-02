@@ -192,10 +192,18 @@ async function ask(
   tools: ToolDef[],
   opts: { signal: AbortSignal; host: AgentHost }
 ): Promise<ChatMessage> {
-  // Wskaźnik generowania: start (model przetwarza prompt), tokeny na żywo najwyżej 4 razy na sekundę, koniec.
-  let tokens = 0;
+  // Wskaźnik generowania. LM Studio wysyła tekst i myślenie token po tokenie, a argumenty narzędzia
+  // w całości dopiero po ich wygenerowaniu: tempo liczymy tylko z tokenów przesłanych na bieżąco,
+  // a liczbę tokenów na koniec bierzemy z serwera.
+  const t0 = Date.now();
+  let first = 0; // pierwsze dane od serwera
+  let streamed = 0; // tokeny tekstu i myślenia przesłane na bieżąco
+  let streamStart = 0;
+  let streamEnd = 0;
   let sentAt = 0;
-  opts.host.post({ type: "gen", phase: "prompt" });
+  const rate = () =>
+    streamed > 1 && streamEnd - streamStart >= 500 ? (streamed - 1) / ((streamEnd - streamStart) / 1000) : undefined;
+  opts.host.post({ type: "gen", phase: "wait" });
   const { message, usage } = await streamChat({
     messages,
     tools,
@@ -208,16 +216,34 @@ async function ask(
         opts.host.post({ type: "reasoningDelta", text: ev.reasoning, who });
       }
     },
-    onToken: () => {
-      tokens++;
-      if (tokens === 1 || Date.now() - sentAt >= 250) {
-        sentAt = Date.now();
-        opts.host.post({ type: "gen", phase: "out", tokens });
+    onToken: (tool) => {
+      const now = Date.now();
+      first ||= now;
+      if (tool !== undefined) {
+        // Nazwa przychodzi na starcie wywołania, argumenty ("") dopiero na końcu, bez postępu po drodze.
+        if (tool) {
+          opts.host.post({ type: "gen", phase: "tool", tool });
+        }
+        return;
+      }
+      streamStart ||= now;
+      streamEnd = now;
+      streamed++;
+      if (streamed === 1 || now - sentAt >= 250) {
+        sentAt = now;
+        opts.host.post({ type: "gen", phase: "out", tokens: streamed, rate: rate() });
       }
     },
   });
-  // Na koniec dokładna liczba z serwera (z tokenami myślenia), gdy ją podał.
-  opts.host.post({ type: "gen", phase: "done", tokens: usage?.completion || tokens });
+  // Dokładna liczba z serwera (z myśleniem i argumentami narzędzi); tempo tylko z dłuższego strumienia.
+  opts.host.post({
+    type: "gen",
+    phase: "done",
+    tokens: usage?.completion ?? streamed,
+    ms: Date.now() - t0,
+    firstMs: first ? first - t0 : undefined,
+    rate: streamed >= 20 ? rate() : undefined,
+  });
   // Licznik pokazuje kontekst rozmowy; recenzent ma własny, krótki.
   if (usage && who !== "reviewer") {
     opts.host.post({ type: "usage", ...usage });

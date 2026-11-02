@@ -48,8 +48,12 @@ const PLAN_NUDGE =
 const OLD_RESULT_MAX = 2000;
 const OLD_RESULT = "[Output of an earlier tool call removed to keep the context small. Call the tool again if you need it.]";
 const READ_TOOLS = TOOL_DEFS.filter((t) => needsApproval(t.function.name) === null);
-// Recenzent tylko czyta: bez zapisu, komend i otwierania edytora.
-const REVIEW_TOOLS = READ_TOOLS.filter((t) => t.function.name !== "open_file");
+// Recenzent czyta pliki i uruchamia komendy sprawdzające (wersje, zainstalowane programy, testy),
+// bo zadań systemowych nie da się sprawdzić w plikach. Bez zapisu i otwierania edytora.
+const REVIEW_TOOLS = [
+  ...READ_TOOLS.filter((t) => t.function.name !== "open_file"),
+  ...TOOL_DEFS.filter((t) => t.function.name === "run_command"),
+];
 
 export type PlanStatus = "pending" | "in_progress" | "done";
 export interface PlanStep {
@@ -93,10 +97,10 @@ const TOOLS: Record<Who, ToolDef[]> = {
   planner: [...READ_TOOLS, PLAN_TOOL],
   reviewer: REVIEW_TOOLS,
 };
-// Odpowiedź dla modelu, który bez prawa zapisu sięga po zapis albo komendę.
+// Odpowiedź dla modelu, który sięga po zapis albo komendę spoza swoich narzędzi.
 const READ_ONLY: Partial<Record<Who, string>> = {
   planner: "Plan mode: you can only read. Put this change in the plan with update_plan.",
-  reviewer: "The reviewer can only read.",
+  reviewer: "The reviewer cannot change files.",
 };
 
 const PLAN_MODE_RULES = [
@@ -183,7 +187,9 @@ function reviewerPrompt(): string {
     `Workspace: ${root}`,
     "",
     "Rules:",
-    "- You only have read-only tools. Do not trust the agent's summary: open the files the task is about and check their contents.",
+    "- Do not trust the agent's summary: open the files the task is about and check their contents.",
+    "- Use run_command to check what files cannot show: versions, whether a program is installed or removed (e.g. winget list), building, running tests or the program. Never change files or the system with it.",
+    "- The list of changes shows the agent's commands with their real output, captured by SyntaxCoder (not written by the agent).",
     "- Check every requirement from the request separately. Use get_diagnostics for changed code.",
     "- Do not judge style or things the user did not ask for.",
     "- Be brief and reply in the user's language.",
@@ -392,10 +398,11 @@ async function loop(
         result = savePlan(args);
       } else {
         const kind = needsApproval(name);
-        const readOnly = READ_ONLY[who];
+        // Zapis albo komenda spoza narzędzi danej roli (np. zapis u recenzenta) jest zablokowana bez pytania.
+        const blocked = kind && READ_ONLY[who] && !TOOLS[who].some((t) => t.function.name === name) ? READ_ONLY[who] : undefined;
         const cfg = getConfig();
         let allowed = true;
-        if (readOnly && kind) {
+        if (blocked) {
           allowed = false;
         } else if (!cfg.autonomousMode) {
           // W trybie autonomicznym wszystkie operacje są automatycznie zatwierdzane
@@ -411,12 +418,14 @@ async function loop(
         const before = file ? await fingerprint(file) : undefined;
         // Narzędzia sieciowe nie zmieniają plików, więc idą bez pytania (zgoda = przełącznik Web).
         result = !allowed
-          ? { ok: false, text: readOnly ?? "The user rejected this operation." }
+          ? { ok: false, text: blocked ?? "The user rejected this operation." }
           : webNames.has(name)
             ? ((await callWebTool(name, args, opts.signal)) ?? { ok: false, text: `Unknown tool: ${name}` })
             : await executeTool(name, args);
         if (result.ok && kind) {
-          changes.push(`${name} ${args.slice(0, 400)}`);
+          // Komenda z prawdziwym wyjściem (końcówka): recenzent ocenia fakty, a nie opis agenta.
+          const out = name === "run_command" ? ` -> ${result.text.length > 600 ? "…" + result.text.slice(-600) : result.text}` : "";
+          changes.push(`${name} ${args.slice(0, 400)}${out}`);
         }
         opts.host.post({ type: "toolResult", id: call.id, name, ok: result.ok, preview: result.text.slice(0, 1200) });
         // Odrzucenie przez użytkownika to nie kręcenie się w kółko.
@@ -537,13 +546,13 @@ async function review(
         "User request:",
         userText,
         "",
-        "Changes made by the agent (tool + arguments):",
+        "Changes made by the agent (tool + arguments; commands with their real output):",
         ...changes.map((c) => `- ${c}`),
         "",
         "Agent's last answer:",
         agentSummary || "(none)",
         "",
-        "Check in the files whether the request was done.",
+        "Check whether the request was done: in the files and, for changes outside the files, with commands.",
       ].join("\n"),
     },
   ];

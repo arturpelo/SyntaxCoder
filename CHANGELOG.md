@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.34.0
+
+- Recenzent sprawdza też to, czego nie widać w plikach. Dostaje `run_command` do sprawdzania (np. `winget list`, wersje, kompilacja, testy), z tymi samymi zasadami zgody co agent; pliki nadal może tylko czytać. Wcześniej przy zadaniach systemowych, np. odinstalowaniu programu, oceniał sam raport agenta i dawał OK bez sprawdzenia.
+- Recenzent widzi prawdziwe wyjście komend agenta (kod wyjścia i końcówkę wyjścia), przechwycone przez SyntaxCoder, a nie tylko argumenty komend.
+- Odrzucona przez użytkownika komenda recenzenta dostaje komunikat „The user rejected this operation.” zamiast mylącego „The reviewer can only read.”.
+- Skrypty i programy z bieżącego folderu uruchamiają się po samej nazwie (`info.bat`, `main.exe`). Inne rozszerzenie (np. Claude Code) ustawia we wspólnym procesie rozszerzeń VS Code `NoDefaultCurrentDirectoryInExePath=1`, przez co `cmd` odpowiadał „is not recognized”. `run_command` zdejmuje tę zmienną dla swoich komend, jak w zwykłym terminalu VS Code.
+- Polskie znaki w wyjściu komend na Windows: komendy działają w konsoli UTF-8 (`chcp 65001`), a Python pisze w UTF-8 (`PYTHONIOENCODING`). PowerShell i Python oddają `zażółć` zamiast krzaków. Wbudowane `echo` i `dir` z `cmd` wpisane wprost w komendę mogą nadal psuć znaki: cmd ustala stronę kodową przy starcie.
+- Skrypty PowerShella (`.ps1`, `.psm1`, `.psd1`) z polskim tekstem zapisywane przez `write_file` dostają BOM. Bez niego Windows PowerShell 5.1 czytał je jako ANSI i skrypt kończył się błędem składni.
+
 ## 0.33.0
 
 - Agent instaluje programy i uruchamia komendy, zamiast odmawiać. Prompt mówił modelowi „Do not leave the workspace”, a opis `run_command` brzmiał „in the workspace”, więc model (np. Qwen3.6) odpowiadał „nie mam uprawnień do instalacji ani do terminala”, nie próbując nawet żadnej komendy. Teraz wie, że `run_command` uruchamia prawdziwe komendy na komputerze użytkownika (z nazwą systemu i powłoki, np. `Windows, cmd.exe`), także instalacje (`winget`, `npm`, `pip`), i że ma spróbować i zgłosić prawdziwy błąd. Do folderu projektu ograniczone są tylko narzędzia plikowe.

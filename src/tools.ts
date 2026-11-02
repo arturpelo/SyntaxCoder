@@ -416,7 +416,10 @@ async function createDir(rel: string): Promise<string> {
 async function writeFile(rel: string, content: string): Promise<string> {
   const abs = resolveInWorkspace(rel);
   await fs.mkdir(path.dirname(abs), { recursive: true });
-  await fs.writeFile(abs, content, "utf8");
+  // Windows PowerShell 5.1 czyta skrypt bez BOM jako ANSI: polskie znaki psują mu składnię. Z BOM czyta UTF-8.
+  const BOM = String.fromCharCode(0xfeff);
+  const bom = /\.ps[md]?1$/i.test(rel) && /[^\x00-\x7f]/.test(content) && !content.startsWith(BOM) ? BOM : "";
+  await fs.writeFile(abs, bom + content, "utf8");
   const doc = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === abs);
   if (doc) {
     const edit = new vscode.WorkspaceEdit();
@@ -687,10 +690,16 @@ async function runCommand(command: string, cwdRel: string, timeoutS: number): Pr
   // Model może tylko wydłużyć limit z ustawień (instalacje, duże kompilacje), najwyżej do 30 minut.
   const timeout = Math.max(getConfig().commandTimeoutMs, Math.min(1800, timeoutS) * 1000);
   return await new Promise((resolve, reject) => {
-    const child = spawn(command, {
+    // Windows: konsola w UTF-8 (chcp 65001), więc PowerShell i programy piszące przez konsolę oddają
+    // polskie znaki w UTF-8. Wbudowane echo/dir z cmd zostają w stronie OEM: cmd zapamiętuje ją przy starcie.
+    const child = spawn(process.platform === "win32" ? `chcp 65001>nul & ${command}` : command, {
       cwd,
       shell: true,
       windowsHide: true,
+      // Python pisze na stdout w UTF-8, a nie w stronie kodowej systemu. NoDefaultCurrentDirectoryInExePath
+      // ustawia we wspólnym procesie rozszerzeń VS Code inne rozszerzenie; bez niej cmd szuka programów
+      // w bieżącym folderze (info.bat, main.exe), jak w zwykłym terminalu.
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", NoDefaultCurrentDirectoryInExePath: undefined },
       // Bez wejścia z klawiatury: program, który o nie pyta (np. zgoda na licencję), dostaje od razu koniec
       // wejścia i kończy się błędem do poprawienia, zamiast wisieć do limitu czasu.
       stdio: ["ignore", "pipe", "pipe"],

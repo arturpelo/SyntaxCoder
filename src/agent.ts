@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { getConfig, workspaceRoot } from "./config";
-import { streamChat, type ChatMessage, type ToolCall, type ToolDef } from "./lmStudio";
+import { resolveModel, streamChat, type ChatMessage, type ToolCall, type ToolDef } from "./lmStudio";
 import { t } from "./i18n";
 import { callWebTool, webTools } from "./mcp";
 import { executeTool, fingerprint, isProtectedWrite, needsApproval, TOOL_DEFS, type ToolResult } from "./tools";
@@ -11,7 +11,6 @@ export interface AgentHost {
 }
 
 export const ABORTED = "aborted";
-const MAX_TURNS = 24;
 const MAX_FIX_ROUNDS = 4;
 // Kręcenie się w kółko: tura bez postępu podnosi poziom, tura z nowym wynikiem go obniża.
 // 1 i 3: wskazówka, co dokładnie się powtarza; 2: tura namysłu bez narzędzi;
@@ -185,6 +184,10 @@ function reviewerPrompt(): string {
   ].join("\n");
 }
 
+// Ostatnio zmierzone tempo generowania (tok/s) każdego modelu. Z niego wskaźnik szacuje tokeny argumentów
+// narzędzia, których LM Studio nie przesyła na bieżąco (żadne jego API: chat/completions, responses).
+const knownRates = new Map<string, number>();
+
 // Jedno zapytanie do modelu ze strumieniem tekstu i myślenia do czatu.
 async function ask(
   messages: ChatMessage[],
@@ -201,8 +204,13 @@ async function ask(
   let streamStart = 0;
   let streamEnd = 0;
   let sentAt = 0;
+  let toolStart = 0; // nazwa pierwszego narzędzia
+  let toolEnd = 0; // argumenty ostatniego narzędzia
   const rate = () =>
     streamed > 1 && streamEnd - streamStart >= 500 ? (streamed - 1) / ((streamEnd - streamStart) / 1000) : undefined;
+  // Model, który naprawdę odpowiada (pusty syntaxcoder.model = pierwszy załadowany), bo tempo zależy od modelu.
+  const model = await resolveModel();
+  const estRate = knownRates.get(model);
   opts.host.post({ type: "gen", phase: "wait" });
   const { message, usage } = await streamChat({
     messages,
@@ -220,9 +228,13 @@ async function ask(
       const now = Date.now();
       first ||= now;
       if (tool !== undefined) {
-        // Nazwa przychodzi na starcie wywołania, argumenty ("") dopiero na końcu, bez postępu po drodze.
+        // Nazwa przychodzi na starcie wywołania, argumenty ("") dopiero na końcu, bez postępu po drodze:
+        // czat szacuje je z tempa modelu, a dokładną liczbę dostaje na końcu.
         if (tool) {
-          opts.host.post({ type: "gen", phase: "tool", tool });
+          toolStart ||= now;
+          opts.host.post({ type: "gen", phase: "tool", tool, rate: estRate });
+        } else {
+          toolEnd = now;
         }
         return;
       }
@@ -236,13 +248,21 @@ async function ask(
     },
   });
   // Dokładna liczba z serwera (z myśleniem i argumentami narzędzi); tempo tylko z dłuższego strumienia.
+  const tokens = usage?.completion ?? streamed;
+  const streamRate = streamed >= 20 ? rate() : undefined;
+  // Do szacunków także tempo pisania argumentów, ale tylko dłuższego: przy krótkim zawyżają je tokeny sprzed nazwy.
+  const toolRate = toolStart && toolEnd - toolStart >= 2000 ? tokens / ((toolEnd - toolStart) / 1000) : undefined;
+  const measured = streamRate ?? toolRate;
+  if (measured) {
+    knownRates.set(model, measured);
+  }
   opts.host.post({
     type: "gen",
     phase: "done",
-    tokens: usage?.completion ?? streamed,
+    tokens,
     ms: Date.now() - t0,
     firstMs: first ? first - t0 : undefined,
-    rate: streamed >= 20 ? rate() : undefined,
+    rate: streamRate,
   });
   // Licznik pokazuje kontekst rozmowy; recenzent ma własny, krótki.
   if (usage && who !== "reviewer") {
@@ -324,7 +344,8 @@ async function loop(
     opts.host.post({ type: "plan", steps: plan });
     return { ok: true, text: "Plan saved." };
   };
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
+  const maxTurns = getConfig().maxTurns;
+  for (let turn = 0; turn < maxTurns; turn++) {
     if (opts.signal.aborted) {
       throw new Error(ABORTED);
     }

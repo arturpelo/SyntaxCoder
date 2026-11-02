@@ -18,6 +18,7 @@
   "cfg.autoApproveWrites": "Dateien ohne Bestätigung schreiben und ändern",
   "cfg.autoApproveTerminal": "Terminalbefehle ohne Bestätigung ausführen",
   "cfg.commandTimeoutMs": "Zeitlimit für Befehle (ms)",
+  "cfg.maxTurns": "Werkzeugrunden pro Aufgabe (eine Runde = eine Modellantwort mit Werkzeugaufrufen). Sind sie verbraucht, hört der Agent mit einer Zusammenfassung auf. Im Kreis drehen wird ohnehin früher gestoppt.",
   "cfg.autonomousMode": "Autonomer Modus: Das Modell schreibt Dateien und führt Befehle OHNE Rückfrage aus. Nur in vertrauenswürdigen Projekten einschalten.",
   "cfg.reviewer": "Prüfer: Nach Dateiänderungen prüft ein zweiter Modelldurchlauf, ob die Aufgabe erledigt ist. Lücken gehen an den Agenten zurück (max. 4 Korrekturrunden).",
   "cfg.planMode": "Planmodus: Der Agent liest zuerst den Code und speichert einen Schrittplan (nur Lesewerkzeuge). Änderungen beginnen erst, wenn du im Chat auf „Plan ausführen“ klickst.",

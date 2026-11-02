@@ -22,6 +22,7 @@ export interface SyntaxCoderConfig {
   webTools: boolean;
   mcpServers: Record<string, { type?: string; url: string }>;
   commandTimeoutMs: number;
+  maxTurns: number;
 }
 
 const TOKEN_KEY = "syntaxcoder.apiToken";
@@ -79,6 +80,8 @@ export function getConfig(): SyntaxCoderConfig {
     webTools: c.get<boolean>("webTools", false),
     mcpServers: c.get<Record<string, { type?: string; url: string }>>("mcpServers", {}),
     commandTimeoutMs: c.get<number>("commandTimeoutMs", 60000),
+    // Rundy narzędzi na zadanie; spoza 5–1000 (np. ręcznie w settings.json) wraca do granic.
+    maxTurns: Math.min(1000, Math.max(5, Math.round(c.get<number>("maxTurns", 100)) || 100)),
   };
 }
 

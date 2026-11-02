@@ -18,6 +18,7 @@
   "cfg.autoApproveWrites": "Write and edit files without approval",
   "cfg.autoApproveTerminal": "Run terminal commands without approval",
   "cfg.commandTimeoutMs": "Command time limit (ms)",
+  "cfg.maxTurns": "Tool rounds per task (one round = one model answer with tool calls). When they run out, the agent stops with a summary. Going in circles is stopped earlier anyway.",
   "cfg.autonomousMode": "Autonomous mode: the model writes files and runs commands WITHOUT asking. Turn on only in projects you trust.",
   "cfg.reviewer": "Reviewer: after file changes, a second model pass checks the task from the prompt was done. Gaps go back to the agent (max 4 fix rounds).",
   "cfg.planMode": "Plan mode: the agent first reads the code and saves a plan of steps (read-only tools). Changes start only after you click Execute plan in the chat.",

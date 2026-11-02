@@ -18,6 +18,7 @@
   "cfg.autoApproveWrites": "Écrire et modifier des fichiers sans confirmation",
   "cfg.autoApproveTerminal": "Lancer des commandes terminal sans confirmation",
   "cfg.commandTimeoutMs": "Délai maximal d'une commande (ms)",
+  "cfg.maxTurns": "Tours d'outils par tâche (un tour = une réponse du modèle avec des appels d'outils). Une fois épuisés, l'agent s'arrête avec un résumé. Tourner en rond est de toute façon arrêté plus tôt.",
   "cfg.autonomousMode": "Mode autonome : le modèle écrit des fichiers et lance des commandes SANS demander. À activer seulement dans des projets de confiance.",
   "cfg.reviewer": "Relecteur : après des modifications de fichiers, un second passage du modèle vérifie que la tâche a été faite. Les manques retournent à l'agent (4 tours de correction max.).",
   "cfg.planMode": "Mode plan : l'agent lit d'abord le code et enregistre un plan d'étapes (outils de lecture seule). Les modifications ne commencent qu'après un clic sur « Exécuter le plan » dans le chat.",

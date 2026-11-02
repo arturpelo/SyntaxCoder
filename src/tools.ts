@@ -424,8 +424,14 @@ async function writeFile(rel: string, content: string): Promise<string> {
 
 async function editFile(rel: string, oldStr: string, newStr: string): Promise<string> {
   const abs = resolveInWorkspace(rel);
-  const current = await fs.readFile(abs, "utf8");
-  const count = current.split(oldStr).length - 1;
+  const raw = await fs.readFile(abs, "utf8");
+  // Plik z samymi końcami linii CRLF (Windows): model pisze old_string z \n, więc dopasowanie idzie
+  // na wersji z \n, a zapis wraca do CRLF. Plik z mieszanymi końcami linii zostaje dopasowany dosłownie.
+  const crlf = raw.includes("\r\n") && !/(^|[^\r])\n/.test(raw);
+  const lf = (s: string) => (crlf ? s.replace(/\r\n/g, "\n") : s);
+  const current = lf(raw);
+  const oldText = lf(oldStr);
+  const count = current.split(oldText).length - 1;
   if (count === 0) {
     throw new Error(`old_string not found in ${rel}. Read the file again.`);
   }
@@ -433,7 +439,8 @@ async function editFile(rel: string, oldStr: string, newStr: string): Promise<st
     throw new Error(`old_string occurs ${count} times. Give a more unique fragment.`);
   }
   // Funkcja zamiast tekstu: "$&", "$1" itp. w new_string trafiają do pliku dosłownie.
-  const next = current.replace(oldStr, () => newStr);
+  const edited = current.replace(oldText, () => lf(newStr));
+  const next = crlf ? edited.replace(/\n/g, "\r\n") : edited;
   await fs.writeFile(abs, next, "utf8");
   const doc = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === abs);
   if (doc) {

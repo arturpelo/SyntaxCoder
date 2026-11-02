@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.32.0
+
+- `edit_file` działa w plikach z końcami linii Windows (CRLF). Model pisze `old_string` z samym `\n`, więc każda wielolinijkowa zmiana w takim pliku kończyła się „old_string not found”, a agent ponawiał próby, aż wyczerpał rundy. Teraz w pliku z samymi końcami CRLF dopasowanie idzie na wersji z `\n`, a zapis wraca do CRLF. Plik z mieszanymi końcami linii jest dopasowywany dosłownie, jak dotąd.
+- Limit rund narzędzi to nowe ustawienie `syntaxcoder.maxTurns`, domyślnie 100 (było na stałe 24), zakres 5–1000. Kręcenie się w kółko nadal przerywa pracę wcześniej.
+- Wskaźnik generowania pokazuje tokeny zamiast sekund. Gdy model pisze argumenty narzędzia, widać rosnącą liczbę, np. `write_file ~640 tok`. LM Studio oddaje te argumenty dopiero w całości (sprawdzone: `/v1/chat/completions`, `/v1/responses`, `/api/v1/chat`), więc `~` to szacunek ze zmierzonego tempa modelu, a na końcu wskaźnik pokazuje dokładną liczbę z LM Studio.
+- Tempo do szacunku jest pamiętane osobno dla każdego modelu, który naprawdę odpowiada (także przy pustym `syntaxcoder.model`), i odświeżane w każdej turze. Nowy model pokazuje `write_file …`, dopóki jego tempo nie zostanie zmierzone.
+- Dopóki LM Studio nic nie wysyła, wskaźnik pokazuje `prompt…`. Koniec bez tempa to sama liczba tokenów, np. `192 tok`. Sekundy są w podpowiedzi.
+
 ## 0.31.1
 
 - Wskaźnik generowania pokazuje prawdziwe liczby. Wcześniej liczył zdarzenia ze strumienia, a LM Studio wysyła argumenty narzędzia jednym kawałkiem na końcu: tura z 38 tokenami pokazywała „2 tok”, a tempo z dwóch zdarzeń wychodziło zawyżone.

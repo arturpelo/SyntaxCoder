@@ -252,13 +252,13 @@ function renderCtx() {
 
 const secs = (ms) => (ms < 10000 ? (ms / 1000).toFixed(1) : String(Math.round(ms / 1000)));
 
-// Wskaźnik generowania. Liczby (tokeny, tempo, czasy) liczy host; tu tylko czas trwania faz bez danych:
-// wait = LM Studio jeszcze nic nie wysłało, tool = model pisze argumenty narzędzia, które przyjdą w całości.
+// Wskaźnik generowania. Liczby (tokeny, tempo, czasy) liczy host. wait = LM Studio jeszcze nic nie wysłało;
+// tool = model pisze argumenty narzędzia, które LM Studio odda w całości: tu tokeny szacujemy z tempa modelu.
 function onGen(m) {
   const same = m.phase === genState.phase && m.tool === genState.tool;
   genState = { ...m, since: same ? genState.since : Date.now() };
   stopGen();
-  if (m.phase === "wait" || m.phase === "tool") genTimer = setInterval(drawGen, 1000);
+  if (m.phase === "wait" || m.phase === "tool") genTimer = setInterval(drawGen, 250);
   drawGen();
 }
 
@@ -276,16 +276,17 @@ function drawGen() {
   const r = s.rate ? s.rate.toFixed(s.rate < 10 ? 1 : 0) : "";
   const t = secs(Date.now() - s.since);
   if (s.phase === "wait") {
-    gen.textContent = tr("genWait", t);
-    gen.title = tr("genWaitTitle");
+    gen.textContent = tr("genWait");
+    gen.title = tr("genWaitTitle", t);
   } else if (s.phase === "tool") {
-    gen.textContent = tr("genTool", s.tool, t);
-    gen.title = tr("genToolTitle", s.tool);
+    const est = s.rate ? Math.round((s.rate * (Date.now() - s.since)) / 1000).toLocaleString() : "";
+    gen.textContent = est ? tr("genTool", s.tool, est) : tr("genToolNoRate", s.tool);
+    gen.title = tr(est ? "genToolTitle" : "genToolNoRateTitle", s.tool, r, t);
   } else if (s.phase === "out") {
     gen.textContent = r ? tr("genOut", n, r) : tr("genTok", n);
     gen.title = tr("genLiveTitle");
   } else {
-    gen.textContent = r ? tr("genOut", n, r) : tr("genDone", n, secs(s.ms));
+    gen.textContent = r ? tr("genOut", n, r) : tr("genTok", n);
     gen.title =
       tr("genTitle", n, secs(s.ms), s.firstMs == null ? "—" : secs(s.firstMs)) + (r ? " " + tr("genRateTitle", r) : "");
   }

@@ -18,6 +18,7 @@
   "cfg.autoApproveWrites": "Zapisuj i edytuj pliki bez potwierdzenia",
   "cfg.autoApproveTerminal": "Uruchamiaj komendy terminala bez potwierdzenia",
   "cfg.commandTimeoutMs": "Limit czasu komendy (ms)",
+  "cfg.maxTurns": "Rundy narzędzi na zadanie (runda = jedna odpowiedź modelu z wywołaniami narzędzi). Po ich wyczerpaniu agent kończy pracę podsumowaniem. Kręcenie się w kółko i tak przerywa pracę wcześniej.",
   "cfg.autonomousMode": "Tryb autonomiczny: model zapisuje pliki i uruchamia komendy BEZ pytania. Włączaj tylko w projektach, którym ufasz.",
   "cfg.reviewer": "Recenzent: po zmianach plików drugi przebieg modelu sprawdza, czy zadanie z polecenia zostało wykonane. Braki wracają do agenta (maks. 4 rundy poprawek).",
   "cfg.planMode": "Tryb planu: agent najpierw czyta kod i zapisuje plan kroków (tylko narzędzia do odczytu). Zmiany zaczynają się dopiero po kliknięciu „Wykonaj plan” w czacie.",

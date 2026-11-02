@@ -2,7 +2,7 @@
   "name": "syntaxcoder",
   "displayName": "SyntaxCoder",
   "description": "%description%",
-  "version": "0.31.1",
+  "version": "0.32.0",
   "private": true,
   "publisher": "arturpelo",
   "author": {
@@ -183,6 +183,14 @@
           "type": "number",
           "default": 60000,
           "description": "%cfg.commandTimeoutMs%",
+          "scope": "application"
+        },
+        "syntaxcoder.maxTurns": {
+          "type": "integer",
+          "default": 100,
+          "minimum": 5,
+          "maximum": 1000,
+          "description": "%cfg.maxTurns%",
           "scope": "application"
         },
         "syntaxcoder.autonomousMode": {

@@ -134,7 +134,43 @@ function blocks(text) {
   return out.join("");
 }
 
+// Wywołanie narzędzia, które model napisał w tekście zamiast przez API (np. Qwen w turze bez narzędzi albo gdy
+// LM Studio go nie rozpozna). Nic się wtedy nie wykonało: zamiast surowego <tool_call> z całym plikiem w akapitach
+// czat pokazuje zwiniętą kartę z nazwą i argumentami. Działa też na niedomkniętym bloku w trakcie strumienia.
+const LEAKED_CALL = /<tool_call>([\s\S]*?)(?:<\/tool_call>|$)/g;
+
+function leakedArgs(body) {
+  const fn = body.match(/<function=([^>\s]+)>/);
+  if (fn) {
+    const args = {};
+    for (const p of body.matchAll(/<parameter=([^>\s]+)>\n?([\s\S]*?)(?:\n?<\/parameter>|$)/g)) args[p[1]] = p[2];
+    return { name: fn[1], args };
+  }
+  try {
+    const j = JSON.parse(body.trim());
+    return { name: String(j.name ?? "?"), args: typeof j.arguments === "string" ? JSON.parse(j.arguments) : j.arguments ?? {} };
+  } catch {
+    return { name: "?", args: { text: body.trim() } };
+  }
+}
+
+function leakedCard(body) {
+  const { name, args } = leakedArgs(body);
+  const json = JSON.stringify(args);
+  return `<details class="tool leaked"><summary><span class="dot"></span><span class="tname">${esc(name)}</span><span class="targ">${esc(summary(json))}</span><span class="tag">${esc(tr("leakedCall"))}</span></summary><div class="inner"><div class="label">${esc(tr("leakedCallHint"))}</div><pre>${esc(pretty(json))}</pre></div></details>`;
+}
+
 function md(text) {
+  let html = "";
+  let last = 0;
+  for (const m of String(text).matchAll(LEAKED_CALL)) {
+    html += mdText(String(text).slice(last, m.index)) + leakedCard(m[1]);
+    last = m.index + m[0].length;
+  }
+  return html + mdText(String(text).slice(last));
+}
+
+function mdText(text) {
   const parts = String(text).split(/```/);
   let html = "";
   for (let i = 0; i < parts.length; i++) {

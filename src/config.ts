@@ -68,7 +68,7 @@ export function getConfig(): SyntaxCoderConfig {
     apiKey: token ?? c.get<string>("apiKey", "lm-studio"),
     model: c.get<string>("model", "").trim(),
     temperature: c.get<number>("temperature", 0.3),
-    maxTokens: c.get<number>("maxTokens", 4096),
+    maxTokens: c.get<number>("maxTokens", 32768),
     autoApproveWrites: c.get<boolean>("autoApproveWrites", false),
     autoApproveTerminal: c.get<boolean>("autoApproveTerminal", false),
     autonomousMode: c.get<boolean>("autonomousMode", false),

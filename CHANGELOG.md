@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.34.2
+
+- Wywołanie narzędzia, które model napisał tekstem zamiast je wywołać (np. Qwen pisze `<tool_call><function=write_file>…` w turze bez narzędzi), czat pokazuje jako zwiniętą kartę z nazwą, plikiem i znacznikiem „nie uruchomiono”. Po rozwinięciu widać argumenty z zachowanymi wcięciami. Wcześniej cały plik leciał do czatu jako gołe akapity. Agent nie uznaje takiej odpowiedzi za koniec pracy: model dostaje informację, że nic się nie wykonało, i ma wywołać narzędzie naprawdę. W historii zamiast całego pliku zostaje krótka notka.
+- Odpowiedź uciętą na limicie tokenów agent odrzuca, zamiast uruchamiać niedokończone wywołanie. LM Studio oddawało wtedy `write_file` z pustymi argumentami (`{}`), czyli bez ścieżki, co kończyło się `EISDIR`, a model powtarzał to samo. Teraz model dostaje powód i radę, żeby duży plik pisać częściami, a czat pokazuje komunikat o limicie.
+- Domyślny `syntaxcoder.maxTokens` to 32768 zamiast 4096. Limit obejmuje też myślenie modelu: przy włączonym myśleniu 4096 tokenów nie wystarczało na plik z grą 3D (ok. 12 tys. znaków).
+
 ## 0.34.1
 
 - Tryb planu tylko planuje. Planista dostawał prompt agenta wykonawczego (zmieniaj pliki, uruchamiaj komendy, odhaczaj kroki `in_progress`/`done`) z dopiskiem „PLAN MODE” na końcu, więc model (np. Qwen3.6-35B-A3B) „wykonywał” plan bez narzędzi zapisu: oznaczał kroki jako zrobione bez żadnych plików, próbował `run_command`, którego planista nie ma (wywołanie wyciekało do czatu jako tekst `<tool_call>`), pisał, że skończył, i na koniec znów pokazywał plan. Teraz planista ma własny prompt: czyta kod, zapisuje plan raz, podsumowuje i kończy. Pliki powstają dopiero po **Wykonaj plan**.

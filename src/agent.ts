@@ -40,6 +40,21 @@ const WRAP_UP_IN_HISTORY = "Summarize where the task stands.";
 const NO_CHANGE_NUDGE =
   "You changed nothing, so the reviewer's gaps are still there. Use the tools to fix them now, " +
   "or explain exactly why a gap cannot be fixed.";
+// Odpowiedź urwana na max_tokens: LM Studio oddaje wtedy wywołanie z obciętymi argumentami (zwykle "{}"),
+// np. write_file bez ścieżki, które kończyło się EISDIR, a model nie wiedział dlaczego.
+const cutPrompt = (limit: number) =>
+  `Your last reply was cut off at the output limit of ${limit} tokens, so its tool call was incomplete and was not run. ` +
+  "Keep each reply under the limit: think briefly, and write a big file in parts " +
+  "(write_file with the first part, then edit_file to add the next part after its last lines).";
+// Wywołanie narzędzia napisane w treści odpowiedzi (format Qwen <tool_call><function=…> albo JSON), którego
+// LM Studio nie rozpoznało jako wywołania: nic się nie wykonało, a model potrafił potem napisać „stworzyłem plik”.
+const LEAKED_CALL = /<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g;
+const hasLeakedCall = (text: string | null) => Boolean(text && /<tool_call>/.test(text));
+// W historii zostaje krótka notka zamiast całego pliku z argumentów.
+const stripLeakedCalls = (text: string) => text.replace(LEAKED_CALL, "[tool call written as text - it was not run]").trim();
+const LEAKED_NUDGE =
+  "Your last reply wrote a tool call as text (<tool_call>...), so nothing was run and no file was changed. " +
+  "Call the tool through the tool-calling interface, not inside the message text.";
 const PLAN_NUDGE =
   "You did not save a plan. If the request needs changes, save the plan with update_plan now. " +
   "If it is only a question, do not call tools and say in one sentence that no plan is needed.";
@@ -227,7 +242,7 @@ async function ask(
   who: Who,
   tools: ToolDef[],
   opts: { signal: AbortSignal; host: AgentHost }
-): Promise<ChatMessage> {
+): Promise<{ message: ChatMessage; cut: boolean }> {
   // Wskaźnik generowania. LM Studio wysyła tekst i myślenie token po tokenie, a argumenty narzędzia
   // w całości dopiero po ich wygenerowaniu: tempo liczymy tylko z tokenów przesłanych na bieżąco,
   // a liczbę tokenów na koniec bierzemy z serwera.
@@ -245,7 +260,7 @@ async function ask(
   const model = await resolveModel();
   const estRate = knownRates.get(model);
   opts.host.post({ type: "gen", phase: "wait" });
-  const { message, usage } = await streamChat({
+  const { message, usage, finishReason } = await streamChat({
     messages,
     tools,
     signal: opts.signal,
@@ -301,7 +316,7 @@ async function ask(
   if (usage && who !== "reviewer") {
     opts.host.post({ type: "usage", ...usage });
   }
-  return message;
+  return { message, cut: finishReason === "length" };
 }
 
 // Koniec bez narzędzi: model sam mówi użytkownikowi, co zrobił i co blokuje, zamiast samego błędu.
@@ -318,7 +333,7 @@ async function wrapUp(
   }
   messages.push({ role: "user", content: WRAP_UP });
   try {
-    const message = await ask(messages, who, [], opts);
+    const { message } = await ask(messages, who, [], opts);
     // W historii zostaje neutralna prośba: następne zadanie nie dostanie polecenia „przestań pracować”.
     messages.splice(-1, 1, { role: "user", content: WRAP_UP_IN_HISTORY }, { role: "assistant", content: message.content });
     opts.host.post({ type: "assistantDone" });
@@ -390,9 +405,37 @@ async function loop(
     // Tura namysłu idzie bez narzędzi; potem model wraca do pracy z nowym podejściem.
     const thinking = reflect;
     reflect = false;
-    const message = await ask(messages, who, thinking ? [] : tools, opts);
+    const { message, cut } = await ask(messages, who, thinking ? [] : tools, opts);
     const calls = thinking ? [] : ((message as { tool_calls?: ToolCall[] }).tool_calls ?? []);
+    // Urwane wywołanie (albo samo myślenie bez odpowiedzi) nie idzie dalej: model dostaje powód i próbuje krócej.
+    // Liczy się jak tura bez postępu, więc model, który ciągle przekracza limit, kończy podsumowaniem.
+    if (cut && (calls.length || !message.content?.trim())) {
+      messages.push({ role: "assistant", content: message.content ?? "" });
+      opts.host.post({ type: "assistantDone" });
+      const limit = getConfig().maxTokens;
+      opts.host.post({ type: "notice", text: t("agentCut", limit) });
+      if (++stuck >= STUCK_FINISH) {
+        await wrapUp(messages, who, t("agentStuck"), opts);
+        return { finished: false, changes, plan };
+      }
+      messages.push({ role: "user", content: cutPrompt(limit) });
+      continue;
+    }
+    const leaked = !calls.length && hasLeakedCall(message.content);
+    if (leaked) {
+      message.content = stripLeakedCalls(message.content ?? "");
+    }
     messages.push(thinking ? { role: "assistant", content: message.content } : message);
+    // Tura namysłu z wywołaniem w tekście idzie dalej zwykłą drogą (powrót do pracy z narzędziami).
+    if (leaked && !thinking) {
+      opts.host.post({ type: "assistantDone" });
+      if (++stuck >= STUCK_FINISH) {
+        await wrapUp(messages, who, t("agentStuck"), opts);
+        return { finished: false, changes, plan };
+      }
+      messages.push({ role: "user", content: LEAKED_NUDGE });
+      continue;
+    }
     if (!calls.length) {
       opts.host.post({ type: "assistantDone" });
       if (thinking) {

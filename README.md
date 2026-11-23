@@ -54,7 +54,7 @@ Kod nie trafia do żadnej chmury. Wszystko idzie tylko do serwera LM Studio, kt�
 | `syntaxcoder.apiKey` | `lm-studio` | Klucz API wysyłany, gdy nie zapisano tokenu API w panelu (trzymany otwartym tekstem w `settings.json`) |
 | `syntaxcoder.model` | puste | Model; puste = pierwszy załadowany |
 | `syntaxcoder.temperature` | `0.3` | Temperatura próbkowania |
-| `syntaxcoder.maxTokens` | `4096` | Limit tokenów odpowiedzi |
+| `syntaxcoder.maxTokens` | `32768` | Limit tokenów jednej odpowiedzi modelu, razem z myśleniem. Za mały ucina duże pliki w połowie |
 | `syntaxcoder.autoApproveWrites` | `false` | Zapis plików bez pytania |
 | `syntaxcoder.autoApproveTerminal` | `false` | Komendy bez pytania |
 | `syntaxcoder.autonomousMode` | `false` | Wszystko bez pytania |

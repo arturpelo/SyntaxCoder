@@ -103,15 +103,24 @@ const READ_ONLY: Partial<Record<Who, string>> = {
   reviewer: "The reviewer cannot change files.",
 };
 
-const PLAN_MODE_RULES = [
-  "",
-  "PLAN MODE is on. It overrides the rules above: do not change files and do not run commands.",
-  "- Read the code the request is about with the read-only tools.",
-  "- Save the plan with update_plan: concrete steps (which file, what changes), all with status pending.",
-  "- Then reply with a short summary of the plan and the questions the user must decide.",
-  "- The user approves the plan or asks for changes. For changes, save the new plan with update_plan.",
+// Planista ma osobny prompt bez zasad wykonawcy: z nimi (write_file, run_command, kroki in_progress/done)
+// mały model „wykonywał” plan w trybie planu — oznaczał kroki jako done bez plików i wołał brakujące narzędzia.
+const PLANNER_RULES = [
+  "- You only plan. You cannot change files or run commands, and you must not try (also not through other tools).",
+  "- After the user approves the plan, a separate run carries it out with full tools (write_file, edit_file, run_command).",
+  "- First read the code the request is about with the read-only tools. An empty folder has nothing to read.",
+  "- Save the plan once with update_plan: concrete steps (which file, what it contains or what changes). Every step stays pending.",
+  "- Do not write the code or file contents now, and never say that something is created or done.",
+  "- Then reply with a short summary of the plan and the questions the user must decide, and stop.",
+  "- If the user asks for changes, save the new plan with update_plan.",
   "- If the request is only a question, answer it without a plan.",
+  "- File tools work only inside the workspace.",
+  "- Reply in the user's language. Be concrete, no filler.",
 ];
+// Odpowiedź update_plan u planisty: zapis kończy jego pracę, wykonanie czeka na zgodę użytkownika.
+const PLAN_SAVED_FOR_APPROVAL =
+  "Plan saved. The user will review and approve it; the steps run only after that, in a separate run. " +
+  "Do not carry them out now: reply with a short summary of the plan and stop.";
 
 const WEB_RULES = [
   "- Web tools (names server__tool) look up current library docs (context7), code on GitHub (grep) and repository docs (deepwiki). Use them for facts you do not know instead of guessing APIs.",
@@ -127,12 +136,23 @@ export function buildSystemPrompt(planMode = false, web = false): string {
   const editors = vscode.window.visibleTextEditors
     .map((e) => vscode.workspace.asRelativePath(e.document.uri))
     .slice(0, 8);
+  const where = [`Workspace: ${root}`, editors.length ? `Open files: ${editors.join(", ")}` : "No open files."];
+  if (planMode) {
+    return [
+      "You are SyntaxCoder in PLAN MODE, a coding assistant in VS Code connected to a model in LM Studio.",
+      "",
+      ...where,
+      "",
+      "Rules:",
+      ...PLANNER_RULES,
+      ...(web ? WEB_RULES : []),
+    ].join("\n");
+  }
   return [
     "You are SyntaxCoder, a coding assistant in VS Code connected to a model in LM Studio.",
     "Work as an agent: first look at the code with tools, then change files and run commands.",
     "",
-    `Workspace: ${root}`,
-    editors.length ? `Open files: ${editors.join(", ")}` : "No open files.",
+    ...where,
     "",
     "Rules:",
     "- Use tools instead of guessing file contents.",
@@ -150,7 +170,6 @@ export function buildSystemPrompt(planMode = false, web = false): string {
     "- Reply in the user's language. Be concrete, no filler.",
     "- When the task is done, briefly summarize what you did.",
     ...(web ? WEB_RULES : []),
-    ...(planMode ? PLAN_MODE_RULES : []),
   ].join("\n");
 }
 
@@ -355,8 +374,12 @@ async function loop(
     } catch (err) {
       return { ok: false, text: `Plan not saved: ${err instanceof Error ? err.message : String(err)}` };
     }
+    // Planista niczego nie wykonuje: jego kroki zawsze czekają, a czat nie pokazuje fałszywego „done”.
+    if (who === "planner") {
+      plan = plan.map((s) => ({ ...s, status: "pending" }));
+    }
     opts.host.post({ type: "plan", steps: plan });
-    return { ok: true, text: "Plan saved." };
+    return { ok: true, text: who === "planner" ? PLAN_SAVED_FOR_APPROVAL : "Plan saved." };
   };
   const maxTurns = getConfig().maxTurns;
   for (let turn = 0; turn < maxTurns; turn++) {

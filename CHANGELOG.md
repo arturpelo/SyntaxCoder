@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.34.1
+
+- Tryb planu tylko planuje. Planista dostawał prompt agenta wykonawczego (zmieniaj pliki, uruchamiaj komendy, odhaczaj kroki `in_progress`/`done`) z dopiskiem „PLAN MODE” na końcu, więc model (np. Qwen3.6-35B-A3B) „wykonywał” plan bez narzędzi zapisu: oznaczał kroki jako zrobione bez żadnych plików, próbował `run_command`, którego planista nie ma (wywołanie wyciekało do czatu jako tekst `<tool_call>`), pisał, że skończył, i na koniec znów pokazywał plan. Teraz planista ma własny prompt: czyta kod, zapisuje plan raz, podsumowuje i kończy. Pliki powstają dopiero po **Wykonaj plan**.
+- Kroki planu z trybu planu zawsze mają stan „do zrobienia”: czat nie pokazuje już fałszywego ✓ przed wykonaniem.
+
 ## 0.34.0
 
 - Recenzent sprawdza też to, czego nie widać w plikach. Dostaje `run_command` do sprawdzania (np. `winget list`, wersje, kompilacja, testy), z tymi samymi zasadami zgody co agent; pliki nadal może tylko czytać. Wcześniej przy zadaniach systemowych, np. odinstalowaniu programu, oceniał sam raport agenta i dawał OK bez sprawdzenia.
